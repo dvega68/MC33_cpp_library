@@ -241,13 +241,13 @@ See [this link](https://stackoverflow.com/questions/65066235/estimating-size-of-
 
 #### ACKNOWLEDGEMENT:
 
-Thanks to Miguel D&iacute;az (\*), for testing the library.
+Thanks to Miguel D&iacute;az (\*), for testing the library.<br>
 And thanks again to Julien Hess (\*\*) for his helpful suggestions.
 
-(\*) Miguel D&iacute;az e-mail: <mdiaz92@outlook.com>, IVIC doctoral student.
+(\*) Miguel D&iacute;az e-mail: <mdiaz92@outlook.com>, IVIC doctoral student.<br>
 (\*\*) Julien Hess e-mail: <julien.hess.ch@gmail.com>, consultant of [MATHICSE-Group](https://www.epfl.ch/labs/mathicse/)
 
 ---
 
-See [MC33_libraries](https://facyt-quimicomp.neocities.org/MC33_libraries.html) web page
-mail to: <dvega@uc.edu.ve>
+See [MC33_libraries](https://facyt-quimicomp.neocities.org/MC33_libraries.html) web page.<br>
+Mail to: <dvega@uc.edu.ve>
