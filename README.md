@@ -6,7 +6,7 @@
 
 MC33++ library version 5.2
 
-This library is a C++ version based on the MC33 library of the paper:
+This library is a C++ version based on the MC33 library of the paper:  
 Vega, D., Abache, J., Coll, D., [A Fast and Memory-Saving Marching Cubes 33 implementation with the correct interior test](http://jcgt.org/published/0008/03/01), *Journal of Computer Graphics Techniques (JCGT)*, vol. 8, no. 3, 1-18, 2019.
 
 The MC33 library is an open source software. The distribution and use rights are under the terms of the [MIT license](https://opensource.org/licenses/MIT), described in the file "LICENSE.txt".
@@ -163,7 +163,7 @@ The grid3D class has functions for building and managing subgrids that use the s
   MC.set_grid3d(G.get_subgrid(0));
 ```
 
-By modifying the parameters of `add_subgrid` the grid can also be split.
+By modifying the parameters of `add_subgrid` the grid can also be split.  
 The subgrids can be deleted by using `del_subgrid(i)`, where `i` is the subgrid index.
 
 A new function was added to the grid3D class. The `generate_grid_from_fn` function permits build a grid by using a scalar function `double fn(double x, double y, double z)`.
@@ -241,13 +241,13 @@ See [this link](https://stackoverflow.com/questions/65066235/estimating-size-of-
 
 #### ACKNOWLEDGEMENT:
 
-Thanks to Miguel D&iacute;az (\*), for testing the library.<br>
+Thanks to Miguel D&iacute;az (\*), for testing the library.  
 And thanks again to Julien Hess (\*\*) for his helpful suggestions.
 
-(\*) Miguel D&iacute;az e-mail: <mdiaz92@outlook.com>, IVIC doctoral student.<br>
+(\*) Miguel D&iacute;az e-mail: <mdiaz92@outlook.com>, IVIC doctoral student.  
 (\*\*) Julien Hess e-mail: <julien.hess.ch@gmail.com>, consultant of [MATHICSE-Group](https://www.epfl.ch/labs/mathicse/)
 
 ---
 
-See [MC33_libraries](https://facyt-quimicomp.neocities.org/MC33_libraries.html) web page.<br>
+See [MC33_libraries](https://facyt-quimicomp.neocities.org/MC33_libraries.html) web page.  
 Mail to: <dvega@uc.edu.ve>
