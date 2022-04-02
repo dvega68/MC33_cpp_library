@@ -11,6 +11,9 @@ Vega, D., Abache, J., Coll, D., [A Fast and Memory-Saving Marching Cubes 33 impl
 
 The MC33 library is an open source software. The distribution and use rights are under the terms of the [MIT license](https://opensource.org/licenses/MIT), described in the file "LICENSE.txt".
 
+
+![FLTK example](https://repository-images.githubusercontent.com/469939412/decb05bb-c9dc-4019-96bc-11f1f6dee8c8 "Screenshot of the FLTK example")
+
 ---
 
 #### FILES:
