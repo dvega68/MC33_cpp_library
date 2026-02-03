@@ -63,7 +63,7 @@ Vertices:           Faces:
    /|          /|      /|          /|
   / |         / |     / |   2     / |
 7/__________6/  |    /  |     4  /  |
-|   |       |   |   |¯¯¯¯¯¯¯¯¯¯¯| 1 |     z
+|   |       |   |   |Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯| 1 |     z
 |   0_______|___1   | 3 |_______|___|     |
 |  /        |  /    |  /  5     |  /      |____y
 | /         | /     | /     0   | /      /
@@ -531,7 +531,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 							else if (y + 1 < ny? signbf(S->iso - F[z][y + 2][di*(x + 1)]): 0)
 								p[5] = Dy[y + 1][x + 1];
 							else if (signbf(S->iso - F[z - 1][y + 1][di*(x + 1)])) {
-								p[5] = Lz[y + 1][x + 1]; // value of previous slice
+								ti[--k] = p[5] = Lz[y + 1][x + 1]; // value of previous slice
 								break;
 							} else
 								p[5] = surfint(x + 1,y + 1,z,r);
