@@ -1,8 +1,9 @@
 /*
 	File: MC33.h
 	Programmed by: David Vega - dvega@uc.edu.ve
-	version: 5.2
+	version: 5.3
 	March 2022
+	February 2026
 	This library is the C++ version of the library described in the paper:
 	Vega, D., Abache, J., Coll, D., A Fast and Memory Saving Marching Cubes 33
 	implementation with the correct interior test, Journal of Computer Graphics
@@ -11,12 +12,6 @@
 
 #ifndef MC33_h_
 #define MC33_h_
-#if defined(compiling_libMC33)
-#undef integer_GRD
-#undef GRD_type_size
-#undef MC33_double_precision
-#undef GRD_orthogonal
-#endif
 
 /********************************** USAGE ************************************/
 /*
@@ -29,57 +24,55 @@
 
 //3. create a MC33 object and assign it the grid3D.
 	MC33 MC;
-	MC.set_grid3d(G); // or MC.set_grid3d(Z);
-
+	MC.set_grid3d(G);
 //4. calculate an isosurface.
 	surface S;
 	MC.calculate_isosurface(S, isovalue);
 
 */
 
-#define MC33_VERSION_MAJOR 5
-#define MC33_VERSION_MINOR 2
-
 /********************************CUSTOMIZING**********************************/
 //The following defines can be only changed before compiling the library:
-//#define integer_GRD // for dataset with integer type
-#ifndef GRD_type_size
-#define GRD_type_size 4 // 1, 2, 4 or 8 (8 for double, if not defined integer_GRD)
-#endif
-#ifndef MC33_double_precision
-#define MC33_double_precision 0 // 1 means double type for MC33 class members, used only with double or size 4 integer grid data
-#endif
-//#define GRD_orthogonal // If defined, the library only works with orthogonal grids.
+//#define GRD_INTEGER // for dataset with integer type
+#define GRD_TYPE_SIZE 4 // 1, 2, 4 or 8 (8 for double, if not defined GRD_INTEGER)
+#define MC33_DOUBLE_PRECISION 0 // 1 means double type for MC33 class members, used only with double or size 8 integer grid data
+//#define GRD_ORTHOGONAL // If defined, the library only works with orthogonal grids.
+//#define MC33_NORMAL_NEG // the front and back surfaces are exchanged.
+//#define DEFAULT_SURFACE_COLOR 0xFF80FF40// RGBA 0xAABBGGRR: red 64, green 255, blue 128
 /*****************************************************************************/
-#ifdef integer_GRD
-#if GRD_type_size == 4
+
+#define MC33_VERSION_MAJOR 5
+#define MC33_VERSION_MINOR 3
+
+#ifdef GRD_INTEGER
+#if GRD_TYPE_SIZE == 4
 typedef unsigned int GRD_data_type; // variable type of the grid data, by default it is float.
-#elif GRD_type_size == 2
-#undef MC33_double_precision
-#define MC33_double_precision 0
+#elif GRD_TYPE_SIZE == 2
+#undef MC33_DOUBLE_PRECISION
+#define MC33_DOUBLE_PRECISION 0
 typedef unsigned short int GRD_data_type;
-#elif GRD_type_size == 1
-#undef MC33_double_precision
-#define MC33_double_precision 0
+#elif GRD_TYPE_SIZE == 1
+#undef MC33_DOUBLE_PRECISION
+#define MC33_DOUBLE_PRECISION 0
 typedef unsigned char GRD_data_type;
 #else
-#error "Incorrect size of the integer data type. GRD_type_size permitted values: 1, 2 or 4."
+#error "Incorrect size of the integer data type. GRD_TYPE_SIZE permitted values: 1, 2 or 4."
 #endif
-#elif GRD_type_size == 8
-#undef MC33_double_precision
-#define MC33_double_precision 1
+#elif GRD_TYPE_SIZE == 8
+#undef MC33_DOUBLE_PRECISION
+#define MC33_DOUBLE_PRECISION 1
 typedef double GRD_data_type;
-#elif MC33_double_precision
-#undef GRD_type_size
-#define GRD_type_size 8
+#elif MC33_DOUBLE_PRECISION
+#undef GRD_TYPE_SIZE
+#define GRD_TYPE_SIZE 8
 typedef double GRD_data_type;
 #else
 typedef float GRD_data_type;
-#undef GRD_type_size
-#define GRD_type_size 4
+#undef GRD_TYPE_SIZE
+#define GRD_TYPE_SIZE 4
 #endif
 
-#if MC33_double_precision
+#if MC33_DOUBLE_PRECISION
 typedef double MC33_real;
 #else
 typedef float MC33_real;
@@ -100,7 +93,7 @@ are the matrices that transform from inclined to orthogonal coordinates and vice
 versa, respectively. If the grid is periodic (is infinitely repeated along each
 dimension) the flag periodic must be different from 0.
 
-In this library, if GRD_orthogonal is defined, then nonortho, _A and A_ can be
+In this library, if GRD_ORTHOGONAL is defined, then nonortho, _A and A_ can be
 removed from this structure, and it only works with orthogonal grids.
 */
 class grid3d {
@@ -118,7 +111,7 @@ private:
 	grid3d **subgrid;
 	unsigned int nsg, maxnsg; // for subgrids
 	GRD_data_type (grid3d::*interpolation)(double*) const; // pointer to interpolation function
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 	int nonortho;
 	float Ang[3]; // angles between grid axes.
 	double _A[3][3], A_[3][3];
@@ -137,7 +130,7 @@ public:
 	const double* get_r0();
 	const double* get_d();
 	const char* get_title();
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 	const float* get_Ang();
 	const double (*get__A())[3];
 	const double (*get_A_())[3];
@@ -147,7 +140,8 @@ public:
 //Generates an orthogonal grid from a function fn(x,y,z). xi and xf are the
 //limits of the interval along the x axis, yi and yf along the y axis and zi
 //and zf along the z axis. dx, dy and dz are the respective step sizes.
-	int generate_grid_from_fn(double xi, double yi, double zi, double xf, double yf, double zf, double dx, double dy, double dz, double (*fn)(double x, double y, double z));
+	int generate_grid_from_fn(double xi, double yi, double zi, double xf, double yf, double zf,
+		double dx, double dy, double dz, double (*fn)(double x, double y, double z));
 //Get a grid point value
 	GRD_data_type get_grid_value(unsigned int i, unsigned int j, unsigned int k);
 //Calculate a value at position (x, y, z) by interpolating the grid values.
@@ -165,7 +159,7 @@ public:
 	void set_grid_value(unsigned int i, unsigned int j, unsigned int k, GRD_data_type value); // set a grid point value
 	void set_ratio_aspect(double rx, double ry, double rz); // modifies d and L
 	void set_r0(double x, double y, double z); // modifies r0
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 	void set_Ang(float angle_bc, float angle_ca, float angle_ab); // modifies Ang
 #endif
 	void set_title(const char *s); // copy the c style string s to title
@@ -256,12 +250,15 @@ private:
 	std::vector<MC33_v3<float>> N;
 	std::vector<int> color;
 	MC33_real iso;
+	unsigned int sflag;
 public:
 	union {
-		long long unsigned int ul;
-		int i[3];
-		char c[12];
-		float f[3];
+		void *p;
+		long long ul;
+		int i[2];
+		short si[4];
+		char c[8];
+		float f[2];
 		double df;
 	} user; // user data
 	MC33_real get_isovalue(); // returns the isovalue
@@ -286,14 +283,25 @@ public:
 	int save_txt(const char *filename);
 
 	/******************************************************************
+	Saves the surface *S data (without the color) to Wavefront .obj file.
+	The return value is 0 if the call succeeds, else -1.*/
+	int save_obj(const char *filename);
+
+	/******************************************************************
+	Saves the surface *S data to Polygon File Format .ply file.
+	https://paulbourke.net/dataformats/ply/
+	The return value is 0 if the call succeeds, else -1.*/
+	int save_ply(const char *filename, const char* author = 0, const char* object = 0);
+
+	/******************************************************************
 	Reads (from a "filename" file) the surface data stored in binary format.
 	The return value is 0 if the call succeeds, else -1.*/
 	int read_bin(const char *filename);
 
-	/* Draw the surface */
+	/* Draw the surface, this function can be implemented by the user.*/
 	void draw();
 
-	/* Draw some points of the surface */
+	/* Draw some points of the surface, this function can be implemented by the user.*/
 	void drawdraft();
 
 	/* Clear all vector data */
@@ -320,11 +328,11 @@ private:
 	unsigned int nx, ny, nz;
 	const GRD_data_type ***F;
 	MC33_real MC_O[3], MC_D[3], ca, cb;
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 	double _A[3][3], A_[3][3];
 #endif
-	//Assign memory for the vertex r[3], normal (r + 3)[3]. The return value is
-	//the new vertex label.
+	/*Assign memory for the vertex r[3], normal (r + 3)[3]. The return value is
+	the new vertex label.*/
 	std::function<unsigned int(MC33_real*)> store_point;
 
 	//Other auxiliary variables
@@ -361,11 +369,16 @@ public:
 	~MC33();
 };
 
-#ifndef compiling_libMC33
-int MC33::DefaultColor = 0xff5c5c5c;//gray RGBA color as unsigned char[3], 0xAABBGGRR
+#ifndef DEFAULT_SURFACE_COLOR
+#define DEFAULT_SURFACE_COLOR 0xff5c5c5c; // grey red 92 green 92 blue 92
+#endif
 
-#ifdef GL_VERSION
-#if MC33_double_precision
+#ifndef compiling_libMC33
+
+/* Define MC33_USE_DRAW_OPEN_GL before include MC33.h (only once in your project), to
+compile the following surface::draw and surface::drawdraft functions. */
+#ifdef MC33_USE_DRAW_OPEN_GL
+#if MC33_DOUBLE_PRECISION
 #define GL_MC33_real GL_DOUBLE
 #else
 #define GL_MC33_real GL_FLOAT
@@ -400,9 +413,9 @@ void surface::drawdraft() {
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glEnable(GL_LIGHTING);
 }
-#endif
+#endif // MC33_USE_DRAW_OPEN_GL
 
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 //c = Ab, A is a 3x3 upper triangular matrix. If t != 0, A is transposed.
 template<typename T> void T_multTSA_b(const double (*A)[3], T *b, T *c, int t) {
 	if (t) {
@@ -431,16 +444,10 @@ template<typename T> void T_multA_b(const double (*A)[3], T *b, T *c, int t) {
 	c[1] = v;
 }
 
-void (*multAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
-
-void (*mult_TSAbf)(const double (*)[3], MC33_real *, MC33_real *, int) = T_multTSA_b;
-void (*mult_Abf)(const double (*)[3], MC33_real *, MC33_real *, int) = T_multA_b;
-#if GRD_type_size == 8
-void (*multAb)(const double (*)[3], double *, double *, int) = mult_Abf;
-#else
-void (*multAb)(const double (*)[3], double *, double *, int) = T_multA_b;
-#endif
-#endif // GRD_orthogonal
+extern void (*multAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
+extern void (*mult_TSAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
+extern void (*mult_Abf)(const double (*)[3], MC33_real *, MC33_real *, int);
+#endif // GRD_ORTHOGONAL
 
 #endif // compiling_libMC33
 
