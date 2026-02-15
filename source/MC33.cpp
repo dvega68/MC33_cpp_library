@@ -12,6 +12,7 @@
 	December 2021
 	January 2022
 	March 2022
+	February 2026
 */
 
 #ifdef _MSC_VER
@@ -53,6 +54,8 @@ MC33::~MC33() {
 	clear_temp_isosurface();
 }
 
+int MC33::DefaultColor = DEFAULT_SURFACE_COLOR;
+
 void MC33::set_default_surface_color(unsigned char *color) {
 	DefaultColor = *(reinterpret_cast<int*>(color));
 }
@@ -63,7 +66,7 @@ Vertices:           Faces:
    /|          /|      /|          /|
   / |         / |     / |   2     / |
 7/__________6/  |    /  |     4  /  |
-|   |       |   |   |Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯Â¯| 1 |     z
+|   |       |   |   |¯¯¯¯¯¯¯¯¯¯¯| 1 |     z
 |   0_______|___1   | 3 |_______|___|     |
 |  /        |  /    |  /  5     |  /      |____y
 | /         | /     | /     0   | /      /
@@ -121,7 +124,7 @@ int MC33::face_test1(int face) const {
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 // an ugly signbit:
-#if MC33_double_precision
+#if MC33_DOUBLE_PRECISION
 inline unsigned int signbf(double x) {
 	return ((*(reinterpret_cast<unsigned long long int*>(&x))>>32)&0x80000000);
 }
@@ -246,7 +249,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 	}
 	k = c&0x7FF;
 	switch (c>>12) { //find the MC33 case
-		case 0: // cases 1, 2, 5, 8, 9, 11 and 14
+		case 0: // case 1, 2, 5, 8, 9, 11 and 14
 			pcase += k;
 			break;
 		case 1: // case 3
@@ -388,9 +391,10 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 							//	p[1] = Dx[y + 1][0];
 							else if (z && y + 1 < ny? signbf(S->iso - F[z][y + 2][0]): 0)
 								p[1] = Dy[y + 1][0];
-							else if (z? signbf(S->iso - F[z - 1][y + 1][0]): 0)
-								p[1] = Lz[y + 1][0]; // value of previous slice
-							else
+							else if (z? signbf(S->iso - F[z - 1][y + 1][0]): 0) {
+								ti[--k] = p[1] = Lz[y + 1][0]; // value of previous slice
+								break;
+							} else
 								p[1] = surfint(0,y + 1,z,r);
 						} else if (v[2] == 0) {
 							if (p[10] != FF)
@@ -460,9 +464,10 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 								p[3] = Dy[0][0];
 							else if (z && signbf(v[4]))
 								p[3] = Dx[0][0];
-							else if (z? signbf(S->iso - F[z - 1][0][0]): 0)
-								p[3] = Lz[0][0]; // value of previous slice
-							else
+							else if (z? signbf(S->iso - F[z - 1][0][0]): 0) {
+								ti[--k] = p[3] = Lz[0][0]; // value of previous slice
+								break;
+							} else
 								p[3] = surfint(0,0,z,r);
 						} else if (v[3] == 0) {
 							if (p[2] != FF)
@@ -537,9 +542,9 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 								p[5] = surfint(x + 1,y + 1,z,r);
 						} else
 							p[5] = surfint(x + 1,y + 1,0,r);
-					} else if (v[6] == 0) {
+					} else if (v[6] == 0)
 						p[5] = surfint(x + 1,y + 1,z + 1,r);
-					} else {
+					else {
 						t = v[5]/(v[5] - v[6]);
 						r[0] = x + 1; r[1] = y + 1;
 						r[2] = z + t;
@@ -553,7 +558,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 						r[5] = v[6] - v[5];
 						p[5] = store_point(r);
 					}
-					ti[--k] = Lz[y + 1][x + 1] = p[5];
+					Lz[y + 1][x + 1] = ti[--k] = p[5];
 					break;
 				case 6:
 					if (v[7] == 0) {
@@ -593,7 +598,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 									(v[7] - v[4])*(1 - t) + (v[6] - v[5])*t);
 						p[6] = store_point(r);
 					}
-					ti[--k] = Uy[y][x + 1] = p[6];
+					Uy[y][x + 1] = ti[--k] = p[6];
 					break;
 				case 7:
 					if (y)
@@ -610,9 +615,10 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 							//	p[7] = Dy[0][x + 1];
 							else if (z && x + 1 < nx? signbf(S->iso - F[z][0][di*(x + 2)]): 0)
 								p[7] = Dx[0][x + 1];
-							else if (z? signbf(S->iso - F[z - 1][0][di*(x + 1)]): 0)
-								p[7] = Lz[0][x + 1]; // value of previous slice
-							else
+							else if (z? signbf(S->iso - F[z - 1][0][di*(x + 1)]): 0) {
+								ti[--k] = p[7] = Lz[0][x + 1]; // value of previous slice
+								break;
+							} else
 								p[7] = surfint(x + 1,0,z,r);
 						} else if (v[7] == 0) {
 							if (p[6] != FF)
@@ -739,7 +745,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 									(v[2] - v[1])*(1 - t) + (v[6] - v[5])*t);
 						p[10] = store_point(r);
 					}
-					ti[--k] = Ux[y + 1][x] = p[10];
+					Ux[y + 1][x] = ti[--k] = p[10];
 					break;
 				case 11:
 					if (y)
@@ -800,7 +806,7 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 				}
 			}
 			unsigned int *vp = S->T[S->nT++].v;
-#ifndef MC_Normal_neg
+#ifndef MC33_NORMAL_NEG
 			*vp = ti[n]; *(++vp) = ti[m]; *(++vp) = ti[2];
 #else
 			*vp = ti[m]; *(++vp) = ti[n]; *(++vp) = ti[2];
@@ -958,9 +964,10 @@ void MC33::case_count(unsigned int x, unsigned int y, unsigned int z, unsigned i
 								p[1] = Dx[y + 1][0];
 							else if (z && y + 1 < ny? signbf(S->iso - F[z][y + 2][0]): 0)
 								p[1] = Dy[y + 1][0];
-							else if (z? signbf(S->iso - F[z - 1][y + 1][0]): 0)
+							else if (z? signbf(S->iso - F[z - 1][y + 1][0]): 0) {
 								p[1] = Lz[y + 1][0];
-							else
+								break;
+							} else
 								p[1] = S->nV++;
 						} else if (v[2] == 0) {
 							if (p[2] != FF)
@@ -1016,9 +1023,10 @@ void MC33::case_count(unsigned int x, unsigned int y, unsigned int z, unsigned i
 								p[3] = Dy[0][0];
 							else if (z && signbf(v[4]))
 								p[3] = Dx[0][0];
-							else if (z? signbf(S->iso - F[z - 1][0][0]): 0)
+							else if (z? signbf(S->iso - F[z - 1][0][0]): 0) {
 								p[3] = Lz[0][0];
-							else
+								break;
+							} else
 								p[3] = S->nV++;
 						} else if (v[3] == 0) {
 							if (p[2] != FF)
@@ -1074,9 +1082,10 @@ void MC33::case_count(unsigned int x, unsigned int y, unsigned int z, unsigned i
 								p[5] = Dx[y + 1][x + 1];
 							else if (z && y + 1 < ny? signbf(S->iso - F[z][y + 2][di*(x + 1)]): 0)
 								p[5] = Dy[y + 1][x + 1];
-							else if (z? signbf(S->iso - F[z - 1][y + 1][di*(x + 1)]): 0)
+							else if (z? signbf(S->iso - F[z - 1][y + 1][di*(x + 1)]): 0) {
 								p[5] = Lz[y + 1][x + 1]; // value of previous slice
-							else
+								break;
+							} else
 								p[5] = S->nV++;
 						}
 					} else
@@ -1126,9 +1135,10 @@ void MC33::case_count(unsigned int x, unsigned int y, unsigned int z, unsigned i
 								p[7] = Dy[0][x + 1];
 							else if (z && x + 1 < nx? signbf(S->iso - F[z][0][di*(x + 2)]): 0)
 								p[7] = Dx[0][x + 1];
-							else if (z? signbf(S->iso - F[z - 1][0][di*(x + 1)]): 0)
+							else if (z? signbf(S->iso - F[z - 1][0][di*(x + 1)]): 0) {
 								p[7] = Lz[0][x + 1];
-							else
+								break;
+							} else
 								p[7] = S->nV++;
 						} else if (v[7] == 0) {
 							if (p[6] != FF)
@@ -1274,7 +1284,7 @@ void MC33::free_temp_D_U() {
 
 void MC33::clear_temp_isosurface() {
 	if (F) {
-		for (unsigned int y = 0; y != ny; ++y) {
+		for (unsigned int y = 0; y != ny; y++) {
 			delete[] Dx[y]; delete[] Ux[y]; delete[] Dy[y]; delete[] Uy[y];
 			delete[] Lz[y];
 		}
@@ -1299,13 +1309,13 @@ void MC33::clear_temp_isosurface() {
 				}\
 			}
 
-#ifndef MC_Normal_neg
+#ifndef MC33_NORMAL_NEG
 #define code_in_define_part02\
 			MC33_real t = invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
 			float *q = S->N[nv].v;\
 			*q = t * *r; *(++q) = t * *(++r); *(++q) = t * *(++r);\
 			return nv;
-#else //MC_Normal_neg reverses the direction of the normal
+#else //MC33_NORMAL_NEG reverses the direction of the normal
 #define code_in_define_part02\
 			MC33_real t = -invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
 			float *q = S->N[nv].v;\
@@ -1318,18 +1328,18 @@ int MC33::set_grid3d(grid3d &G) {
 	nx = G.N[0];
 	ny = G.N[1];
 	nz = G.N[2];
-#ifndef GRD_orthogonal
+#ifndef GRD_ORTHOGONAL
 	if (G.nonortho) {
 		store_point = [this] (MC33_real* r) {
 			code_in_define_part01
 			multAbf(_A,r,r,0);
-			for (int i = 0; i != 3; ++i)
+			for (int i = 0; i != 3; i++)
 				S->V[nv].v[i] = *(r++) + MC_O[i];
 			multAbf(A_,r,r,1);
 			code_in_define_part02
 		};
-		for (int j = 0; j != 3; ++j)
-			for (int i = 0; i != 3; ++i) {
+		for (int j = 0; j != 3; j++)
+			for (int i = 0; i != 3; i++) {
 				_A[j][i] = G._A[j][i]*G.d[i]; // true transformation matrices
 				A_[j][i] = G.A_[j][i]/G.d[j];
 			}
@@ -1340,7 +1350,7 @@ int MC33::set_grid3d(grid3d &G) {
 		cb = G.d[2]/G.d[1];
 		store_point = [this] (MC33_real* r) {
 			code_in_define_part01
-			for (int i = 0; i != 3; ++i)
+			for (int i = 0; i != 3; i++)
 				S->V[nv].v[i] = *(r++)*MC_D[i] + MC_O[i];
 			r[0] *= ca; // normal[0]
 			r[1] *= cb; // normal[1]
@@ -1349,19 +1359,19 @@ int MC33::set_grid3d(grid3d &G) {
 	} else if (G.d[0] == 1 && G.r0[0] == 0 && G.r0[1] == 0 && G.r0[2] == 0)
 		store_point = [this] (MC33_real* r) {
 			code_in_define_part01
-			for (int i = 0; i != 3; ++i)
+			for (int i = 0; i != 3; i++)
 				S->V[nv].v[i] = *(r++);
 			code_in_define_part02
 		};
 	else
 		store_point = [this] (MC33_real* r) {
 			code_in_define_part01
-			for (int i = 0; i != 3; ++i)
+			for (int i = 0; i != 3; i++)
 				S->V[nv].v[i] = *(r++)*MC_D[i] + MC_O[i];
 			code_in_define_part02
 		};
 
-	for (int j = 0; j != 3; ++j) {
+	for (int j = 0; j != 3; j++) {
 		MC_O[j] = G.r0[j];
 		MC_D[j] = G.d[j];
 	}
@@ -1377,7 +1387,7 @@ int MC33::set_grid3d(grid3d &G) {
 		free_temp_D_U();
 		return -1;
 	}
-	for (unsigned int j = 0; j != ny; ++j) {
+	for (unsigned int j = 0; j != ny; j++) {
 		Dx[j] = new (nothrow) unsigned int[nx];
 		Ux[j] = new (nothrow) unsigned int[nx];
 		Lz[j] = new (nothrow) unsigned int[nx + 1];
@@ -1405,6 +1415,11 @@ int MC33::set_grid3d(grid3d *G) {
 	return set_grid3d(*G);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer" 
+#endif
+
 int MC33::calculate_isosurface(surface &Sf, MC33_real iso) {
 	const GRD_data_type ***FG = F;
 	if (!FG)//The set_grid3d function was not executed
@@ -1418,10 +1433,10 @@ int MC33::calculate_isosurface(surface &Sf, MC33_real iso) {
 	MC33_real Vt[12];
 	MC33_real *v2 = Vt;
 	v = Vt + 4;
-	for (unsigned int z = 0; z != nz; ++z) {
+	for (unsigned int z = 0; z != nz; z++) {
 		const GRD_data_type **F0 = *FG;
 		const GRD_data_type **F1 = *(++FG);
-		for (unsigned int y = 0; y != ny; ++y) {
+		for (unsigned int y = 0; y != ny; y++) {
 			const GRD_data_type *V00 = *F0;
 			const GRD_data_type *V01 = *(++F0);
 			const GRD_data_type *V10 = *F1;
@@ -1436,7 +1451,7 @@ int MC33::calculate_isosurface(surface &Sf, MC33_real iso) {
 			if (signbf(v2[0])) i |= 8;
 			if (signbf(v2[1])) i |= 4;
 			if (signbf(v2[2])) i |= 2;
-			for (unsigned int x = 0; x != Nx; ++x) {
+			for (unsigned int x = 0; x != Nx; x++) {
 				swap(v2, v);
 				V00 += d;
 				v2[0] = iso - *V00;//*(++V00);
@@ -1451,7 +1466,8 @@ int MC33::calculate_isosurface(surface &Sf, MC33_real iso) {
 				if (signbf(v2[1])) i |= 4;
 				if (signbf(v2[2])) i |= 2;
 				if (i && i^0xFF) { //i is different from 0 and 0xFF
-					if (v2 < v) {MC33_real *t = v2; MC33_real *s = t + 8; *s = *t; *(++s) = *(++t); *(++s) = *(++t); *(++s) = *(++t);}// memcpy(v2 + 8, v2, 4*sizeof(MC33_real));
+					if (v2 < v) { MC33_real *t = v2; MC33_real *s = t + 8; *s = *t;
+						*(++s) = *(++t); *(++s) = *(++t); *(++s) = *(++t); }
 					find_case(x, y, z, i);
 				}
 			}
@@ -1484,10 +1500,10 @@ size_t MC33::size_of_isosurface(MC33_real iso, unsigned int &nV, unsigned int &n
 	MC33_real Vt[12];
 	MC33_real *v2 = Vt;
 	v = Vt + 4;
-	for (unsigned int z = 0; z != nz; ++z) {
+	for (unsigned int z = 0; z != nz; z++) {
 		const GRD_data_type **F0 = *FG;
 		const GRD_data_type **F1 = *(++FG);
-		for (unsigned int y = 0; y != ny; ++y) {
+		for (unsigned int y = 0; y != ny; y++) {
 			const GRD_data_type *V00 = *F0;
 			const GRD_data_type *V01 = *(++F0);
 			const GRD_data_type *V10 = *F1;
@@ -1500,7 +1516,7 @@ size_t MC33::size_of_isosurface(MC33_real iso, unsigned int &nV, unsigned int &n
 			if (signbf(v2[2])) i |= 2;
 			if (signbf(v2[1])) i |= 4;
 			if (signbf(v2[0])) i |= 8;
-			for (unsigned int x = 0; x != Nx; ++x) {
+			for (unsigned int x = 0; x != Nx; x++) {
 				swap(v, v2);
 				V00 += d;
 				v2[0] = iso - *V00;//*(++V00);
@@ -1515,7 +1531,8 @@ size_t MC33::size_of_isosurface(MC33_real iso, unsigned int &nV, unsigned int &n
 				if (signbf(v2[1])) i |= 4;
 				if (signbf(v2[2])) i |= 2;
 				if (i && i^0xFF) {
-					if (v > v2) {MC33_real *t = v2; MC33_real *s = t + 8; *s = *t; *(++s) = *(++t); *(++s) = *(++t); *(++s) = *(++t);}
+					if (v > v2) { MC33_real *t = v2; MC33_real *s = t + 8; *s = *t;
+						*(++s) = *(++t); *(++s) = *(++t); *(++s) = *(++t); }
 					case_count(x, y, z, i);
 				}
 			}
@@ -1525,9 +1542,13 @@ size_t MC33::size_of_isosurface(MC33_real iso, unsigned int &nV, unsigned int &n
 	}
 	nV = Sf.nV;
 	nT = Sf.nT;
-	// number of vertices * (size of vertex and normal + size of color ) + number of triangle * size of triangle + size of class surface
+	// number of vertices * (size of vertex and normal + size of color ) +
+	// number of triangle * size of triangle + size of class surface
 	return nV*(3*(sizeof(MC33_real) + sizeof(float)) + sizeof(int)) + nT*(3*sizeof(int)) + sizeof(surface);
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 size_t MC33::size_of_isosurface(MC33_real iso) {
 	unsigned int nV, nT;

@@ -1,7 +1,7 @@
 /*
 	File: MC33_LookUpTable.h
 	Programed by: David Vega    - dvega@uc.edu.ve
-	              Javier Abache - jabache@uc.edu.ve
+                Javier Abache - jabache@uc.edu.ve
 	March 2012
 	Modified by David Vega
 	May 2018
@@ -9,12 +9,23 @@
 	Apr 2019
 	Jun 2019
 	Aug 2021
+	Feb 2026
 */
 
-/*The second hexadecimal digit is the MC33 case number, the last two digits contain information
-about the position in the respective case array and the order of triangle vertices*/
 //const unsigned short int MC33_all_tables[2310] =
 {
+/* INDEX
+The 11 least significant bits either contain the position of the triangle pattern
+in this array (cases 1, 2, 5, 8, 9, 11, and 14) or are used to calculate it. The
+12th bit is used to determine whether the order of the triangle vertices (and the
+normal) should be reversed. The 4 most significant bits are related to the MC33 case.
+
+     Case              Patern position
+  __________     _______________________________
+  F  E  D  C  B  A  9  8  7  6  5  4  3  2  1  0
+              ^
+           reverse
+*/
  0x0000, 0x0885, 0x0886, 0x0895, 0x0883, 0x1816, 0x089D, 0x0943,//007
  0x0884, 0x0897, 0x1814, 0x0916, 0x0891, 0x094C, 0x091F, 0x048F,//015
  0x0882, 0x089B, 0x1808, 0x0934, 0x2803, 0x3817, 0x3814, 0x0525,//023
@@ -53,7 +64,11 @@ Vertices order in triangles:
      / o \     \ /    x: Back surface
     1-----2     0
 */
-
+/* TRIANGLE PATERNS
+Each short integer corresponds to one triangle. The most significant hexadecimal
+digit is set to 0 for the last triangle in the pattern. The other 3 digits are
+the cube edges where the triangle vertices are located.
+*/
 /*position*index#vertices*/
 // Case 1 (128)
 /* 0*127#0*/0x0380,

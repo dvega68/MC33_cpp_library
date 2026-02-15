@@ -6,6 +6,8 @@
 	June 2021
 	August 2021
 	December 2021
+	October 2022
+	February 2026
 */
 
 #ifdef _MSC_VER
@@ -27,10 +29,20 @@
 using namespace std;
 
 #ifndef GRD_orthogonal
+void (*multAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
+void (*mult_TSAbf)(const double (*)[3], MC33_real *, MC33_real *, int) = T_multTSA_b;
+void (*mult_Abf)(const double (*)[3], MC33_real *, MC33_real *, int) = T_multA_b;
+
+#if GRD_TYPE_SIZE == 8
+void (*multAb)(const double (*)[3], double *, double *, int) = mult_Abf;
+#else
+void (*multAb)(const double (*)[3], double *, double *, int) = T_multA_b;
+#endif
+
 void setIdentMat3x3d(double (*A)[3]) {
 	for (double *d = A[0] + 8; --d != A[0];)
 		d[0] = 0.0;
-	for (int i = 0; i != 3; ++i)
+	for (int i = 0; i != 3; i++)
 		A[i][i] = 1.0;
 }
 #endif
@@ -102,7 +114,10 @@ GRD_data_type grid3d::trilinear(double *r) const {
 		}
 		s[j] = 1.0 - t[j];
 	}
-	return s[0]*s[1]*s[2]*F[i[2]][i[1]][i[0]] + t[0]*s[1]*s[2]*F[i[2]][i[1]][i[0] + 1] + s[0]*t[1]*s[2]*F[i[2]][i[1] + 1][i[0]] + s[0]*s[1]*t[2]*F[i[2] + 1][i[1]][i[0]] + t[0]*t[1]*s[2]*F[i[2]][i[1] + 1][i[0] + 1] + s[0]*t[1]*t[2]*F[i[2] + 1][i[1] + 1][i[0]] + t[0]*s[1]*t[2]*F[i[2] + 1][i[1]][i[0] + 1] + t[0]*t[1]*t[2]*F[i[2] + 1][i[1] + 1][i[0] + 1];
+	return s[0]*s[1]*s[2]*F[i[2]][i[1]][i[0]] + t[0]*s[1]*s[2]*F[i[2]][i[1]][i[0] + 1] +
+		s[0]*t[1]*s[2]*F[i[2]][i[1] + 1][i[0]] + s[0]*s[1]*t[2]*F[i[2] + 1][i[1]][i[0]] +
+		t[0]*t[1]*s[2]*F[i[2]][i[1] + 1][i[0] + 1] + s[0]*t[1]*t[2]*F[i[2] + 1][i[1] + 1][i[0]] +
+		t[0]*s[1]*t[2]*F[i[2] + 1][i[1]][i[0] + 1] + t[0]*t[1]*t[2]*F[i[2] + 1][i[1] + 1][i[0] + 1];
 }
 
 //from https://facyt-quimicomp.neocities.org/Vega_en.html#c_library
@@ -208,7 +223,7 @@ void grid3d::set_Ang(float angle_bc, float angle_ca, float angle_ab) {
 void grid3d::set_ratio_aspect(double rx, double ry, double rz) {
 	if (F) {
 		d[0] = rx; d[1] = ry; d[2] = rz;
-		for (int i = 0; i != 3; ++i)
+		for (int i = 0; i != 3; i++)
 			L[i] = N[i]*d[i];
 	}
 }
@@ -234,17 +249,15 @@ void grid3d::free_F() {
 	if (F) {
 		clear_subgrid();
 		if (x_data)
-			for (unsigned int k = 0; k <= N[2]; ++k)
+			for (unsigned int k = 0; k <= N[2]; k++)
 				delete[] F[k];
 		else
-			for (unsigned int k = 0; k <= N[2]; ++k) {
+			for (unsigned int k = 0; k <= N[2]; k++) {
 				if (F[k]) {
-					for (unsigned int j = 0; j <= N[1]; ++j)
+					for (unsigned int j = 0; j <= N[1]; j++)
 						delete[] F[k][j];
-				} else {
-					k = N[2];
+				} else 
 					break;
-				}
 				delete[] F[k];
 			}
 		delete[] F;
@@ -264,10 +277,10 @@ grid3d::grid3d(const grid3d &G) {
 	nsg = maxnsg = 0;
 	if (alloc_F())
 		return;
-	for (unsigned int k = 0; k <= N[2]; ++k)
-		for (unsigned int j = 0; j <= N[1]; ++j) {
+	for (unsigned int k = 0; k <= N[2]; k++)
+		for (unsigned int j = 0; j <= N[1]; j++) {
 			if (G.x_data > 1)
-				for (unsigned int i = 0; i <= N[0]; ++i)
+				for (unsigned int i = 0; i <= N[0]; i++)
 					F[k][j][i] = G.F[k][j][i*G.x_data];
 			else
 				memcpy(F[k][j], G.F[k][j], (N[0] + 1)*sizeof(GRD_data_type));
@@ -283,11 +296,11 @@ int grid3d::alloc_F() {
 	F = new (nothrow) GRD_data_type**[N[2] + 1];
 	if (!F)
 		return -1;
-	for (k = 0; k <= N[2]; ++k) {
+	for (k = 0; k <= N[2]; k++) {
 		F[k] = new (nothrow) GRD_data_type*[N[1] + 1];
 		if (!F[k])
 			return -1;
-		for (j = 0; j <= N[1]; ++j) {
+		for (j = 0; j <= N[1]; j++) {
 			F[k][j] = new (nothrow) GRD_data_type[N[0] + 1];
 			if (!F[k][j]) {
 				while (j)
@@ -321,7 +334,7 @@ int grid3d::set_grid_dimensions(unsigned int Nx, unsigned int Ny, unsigned int N
 		free_F();
 		return -2;
 	}
-	for (int i = 0; i != 3; ++i) {
+	for (int i = 0; i != 3; i++) {
 		L[i] = N[i];
 		d[i] = 1.0;
 		r0[i] = 0.0;
@@ -349,7 +362,7 @@ int grid3d::set_data_pointer(unsigned int Nx, unsigned int Ny, unsigned int Nz, 
 	F = new (nothrow) GRD_data_type**[Nz];
 	if (!F)
 		return -2;
-	for (unsigned int k = 0; k < Nz; ++k) {
+	for (unsigned int k = 0; k < Nz; k++) {
 		F[k] = new (nothrow) GRD_data_type*[Ny];
 		if (!F[k]) {
 			while (k)
@@ -358,11 +371,11 @@ int grid3d::set_data_pointer(unsigned int Nx, unsigned int Ny, unsigned int Nz, 
 			F = 0;
 			return -2;
 		}
-		for (unsigned int j = 0; j < Ny; ++j)
+		for (unsigned int j = 0; j < Ny; j++)
 			F[k][j] = data + j*Nx;
 		data += Ny*Nx;
 	}
-	for (int i = 0; i != 3; ++i) {
+	for (int i = 0; i != 3; i++) {
 		L[i] = N[i];
 		d[i] = 1.0;
 		r0[i] = 0.0;
@@ -436,7 +449,7 @@ int grid3d::add_subgrid(unsigned int Oi, unsigned int Oj, unsigned int Ok,
 		delete G;
 		return -2;
 	}
-	for (unsigned int k = 0; k < Nk; ++k) {
+	for (unsigned int k = 0; k < Nk; k++) {
 		G->F[k] = new (nothrow) GRD_data_type*[Nj];
 		if (!G->F[k]) {
 			while (++k < Nk)
@@ -444,7 +457,7 @@ int grid3d::add_subgrid(unsigned int Oi, unsigned int Oj, unsigned int Ok,
 			delete G;
 			return -2;
 		}
-		for (unsigned int j = 0; j < Nj; ++j)
+		for (unsigned int j = 0; j < Nj; j++)
 			G->F[k][j] = F[Ok + k*Sk][Oj + j*Sj] + Oi;
 	}
 	G->d[0] = Si*d[0];
@@ -478,7 +491,8 @@ int grid3d::add_subgrid(unsigned int Oi, unsigned int Oj, unsigned int Ok,
 	return 0;
 }
 
-int grid3d::generate_grid_from_fn(double xi, double yi, double zi, double xf, double yf, double zf, double dx, double dy, double dz, double (*fn)(double x, double y, double z)) {
+int grid3d::generate_grid_from_fn(double xi, double yi, double zi, double xf, double yf, double zf,
+	double dx, double dy, double dz, double (*fn)(double x, double y, double z)) {
 	free_F();
 	if (dx <= 0 || dy <= 0 || dz <= 0 || xi == xf || yi == yf || zi == zf) {
 		N[0] = N[1] = N[2] = 0;
@@ -507,11 +521,11 @@ int grid3d::generate_grid_from_fn(double xi, double yi, double zi, double xf, do
 	r0[0] = xi; r0[1] = yi; r0[2] = zi;
 	if (fn) {
 		double x, y, z = zi;
-		for (size_t k = 0; k <= N[2]; ++k) {
+		for (size_t k = 0; k <= N[2]; k++) {
 			y = yi;
-			for (size_t j = 0; j <= N[1]; ++j) {
+			for (size_t j = 0; j <= N[1]; j++) {
 				x = xi;
-				for (size_t i = 0; i <= N[0]; ++i) {
+				for (size_t i = 0; i <= N[0]; i++) {
 					F[k][j][i] = (GRD_data_type)fn(x,y,z);
 					x += dx;
 				}
@@ -520,7 +534,7 @@ int grid3d::generate_grid_from_fn(double xi, double yi, double zi, double xf, do
 			z += dz;
 		}
 	}
-	for (int i = 0; i != 3; ++i) {
+	for (int i = 0; i != 3; i++) {
 		L[i] = N[i]*d[i];
 #ifndef GRD_orthogonal
 		Ang[i] = 90.0f;
@@ -534,12 +548,10 @@ int grid3d::generate_grid_from_fn(double xi, double yi, double zi, double xf, do
 	return 0;
 }
 
-
 //******************************************************************
 /*
 read_grd reads a filename file (the file must be a output *.grd file from the
-DMol program), it returns a pointer to struct _GRD that contains all the grid
-data.
+DMol3 program).
 */
 int grid3d::read_grd(const char *filename) {
 	char cs[32];
@@ -562,7 +574,7 @@ int grid3d::read_grd(const char *filename) {
 	in.ignore(20, '\n');
 	if (N[0] < 1 || N[1] < 1 || N[2] < 1) return -1;
 	if (order != 1 && order != 3) return -1;
-	for (i = 0; i != 3; ++i) {
+	for (i = 0; i != 3; i++) {
 		d[i] = L[i]/N[i];
 		r0[i] = xi[i]*d[i];
 	}
@@ -576,17 +588,17 @@ int grid3d::read_grd(const char *filename) {
 		free_F();
 		return -2;
 	}
-	for (k = 0; k <= N[2]; ++k)
+	for (k = 0; k <= N[2]; k++)
 		if (order == 1) {
-			for (j = 0; j <= N[1]; ++j)
-				for (i = 0; i <= N[0]; ++i)
+			for (j = 0; j <= N[1]; j++)
+				for (i = 0; i <= N[0]; i++)
 				{
 					in.getline(cs, 31);
 					F[k][j][i] = stof(cs);
 				}
 		} else {
-			for (i = 0; i <= N[0]; ++i)
-				for (j = 0; j <= N[1]; ++j)
+			for (i = 0; i <= N[0]; i++)
+				for (j = 0; j <= N[1]; j++)
 				{
 					in.getline(cs, 31);
 					F[k][j][i] = stof(cs);
@@ -637,10 +649,10 @@ int grid3d::read_grd_binary(const char* filename) {
 		free_F();
 		return -2;
 	}
-	for (unsigned int k = 0; k <= N[2]; ++k)
-		for (unsigned int j = 0; j <= N[1]; ++j)
-#if GRD_type_size == 8
-			for (unsigned int i = 0; i <= N[0]; ++i) {
+	for (unsigned int k = 0; k <= N[2]; k++)
+		for (unsigned int j = 0; j <= N[1]; j++)
+#if GRD_TYPE_SIZE == 8
+			for (unsigned int i = 0; i <= N[0]; i++) {
 				float f;
 				in.read(reinterpret_cast<char*>(&f), sizeof(float));
 				F[k][j][i] = f;
@@ -650,8 +662,8 @@ int grid3d::read_grd_binary(const char* filename) {
 #endif
 	return (in.good()? 0: -4);
 }
-//******************************************************************
 
+//******************************************************************
 /*
 Reads a set of files that contain a slab of res*res scan data points, the data
 points are read as unsigned short int (if order is different from 0, the bytes
@@ -671,7 +683,7 @@ int grid3d::read_scanfiles(const char *filename, unsigned int res, int order) {
 #endif
 	periodic = 0;
 	r0[0] = r0[1] = r0[2] = 0.0;
-	for (i = 0; i != 2; ++i) {
+	for (i = 0; i != 2; i++) {
 		d[i] = 1.0;
 		N[i] = res - 1;
 		L[i] = float(res - 1);
@@ -705,7 +717,7 @@ int grid3d::read_scanfiles(const char *filename, unsigned int res, int order) {
 			m = -2;
 			break;
 		}
-		for (j = 0; j != res; ++j)
+		for (j = 0; j != res; j++)
 			F[k][j] = new (nothrow) GRD_data_type[res];
 		if (!F[k][N[1]]) {
 			m = -2;
@@ -713,19 +725,19 @@ int grid3d::read_scanfiles(const char *filename, unsigned int res, int order) {
 		}
 
 		if (order)
-			for (j = 0; j != res; ++j)
-				for (i = 0; i != res; ++i) {
+			for (j = 0; j != res; j++)
+				for (i = 0; i != res; i++) {
 					in.read(reinterpret_cast<char*>(&n), sizeof(short int));
 					F[k][j][i] = static_cast<unsigned short int>((n>>8)|(n<<8));
 				}
 		else
-			for (j = 0; j != res; ++j)
-				for (i = 0; i != res; ++i) {
+			for (j = 0; j != res; j++)
+				for (i = 0; i != res; i++) {
 					in.read(reinterpret_cast<char*>(&n), sizeof(short int));
 					F[k][j][i] = n;
 				}
 		if (in.fail()) {
-			for (j = 0; j != res; ++j)
+			for (j = 0; j != res; j++)
 				delete[] F[k][j];
 			delete[] F[k];
 			m = (--k > 0? 0: -4);//m = -4;
@@ -741,7 +753,7 @@ int grid3d::read_scanfiles(const char *filename, unsigned int res, int order) {
 		free_F();
 	else {
 		j = (k + 1)/2;
-		for (i = 0; i != j; ++i)
+		for (i = 0; i != j; i++)
 			swap(F[i], F[k - i]);
 	}
 #ifndef GRD_orthogonal
@@ -779,7 +791,7 @@ int grid3d::read_raw_file(const char *filename, unsigned int *n, int byte, int i
 #endif
 	periodic = 0;
 	r0[0] = r0[1] = r0[2] = 0.0;
-	for (int h = 0; h != 3; ++h) {
+	for (int h = 0; h != 3; h++) {
 		d[h] = 1.0;
 		N[h] = n[h] - 1;
 		L[h] = float(N[h]);
@@ -788,43 +800,43 @@ int grid3d::read_raw_file(const char *filename, unsigned int *n, int byte, int i
 		free_F();
 		return -2;
 	}
-#ifdef integer_GRD
-	if (!isfloat && GRD_type_size == byte)
+#ifdef GRD_INTEGER
+	if (!isfloat && GRD_TYPE_SIZE == byte)
 #else
-	if (isfloat && GRD_type_size == byte)
+	if (isfloat && GRD_TYPE_SIZE == byte)
 #endif
 	{
 		byte *= n[0];
-		for (k = 0; k != n[2]; ++k)
-			for (j = 0; j != n[1]; ++j)
+		for (k = 0; k != n[2]; k++)
+			for (j = 0; j != n[1]; j++)
 				in.read(reinterpret_cast<char*>(F[k][j]), byte);
 	} else if (isfloat) {
 		if (byte == 8) {
-#if defined (integer_GRD) || GRD_type_size == 4
+#if defined (GRD_INTEGER) || GRD_TYPE_SIZE == 4
 			double df;
-			for (k = 0; k != n[2]; ++k)
-				for (j = 0; j != n[1]; ++j)
-					for (i = 0; i != n[0]; ++i)
+			for (k = 0; k != n[2]; k++)
+				for (j = 0; j != n[1]; j++)
+					for (i = 0; i != n[0]; i++)
 					{
 						in.read(reinterpret_cast<char*>(&df), byte);
 						F[k][j][i] = GRD_data_type(df);
 					}
 #endif
 		} else {
-#if defined (integer_GRD) || GRD_type_size == 8
+#if defined (GRD_INTEGER) || GRD_TYPE_SIZE == 8
 			float f;
-			for (k = 0; k != n[2]; ++k)
-				for (j = 0; j != n[1]; ++j)
-					for (i = 0; i != n[0]; ++i) {
+			for (k = 0; k != n[2]; k++)
+				for (j = 0; j != n[1]; j++)
+					for (i = 0; i != n[0]; i++) {
 						in.read(reinterpret_cast<char*>(&f), byte);
 						F[k][j][i] = GRD_data_type(f);
 					}
 #endif
 		}
 	} else if (byte < 0) {
-		for (k = 0; k != n[2]; ++k)
-			for (j = 0; j != n[1]; ++j)
-				for (i = 0; i != n[0]; ++i) {
+		for (k = 0; k != n[2]; k++)
+			for (j = 0; j != n[1]; j++)
+				for (i = 0; i != n[0]; i++) {
 					in.read(reinterpret_cast<char*>(&ui), -byte);
 					if (byte == -2)
 						F[k][j][i] = GRD_data_type((ui>>8)|(ui<<8));
@@ -834,9 +846,9 @@ int grid3d::read_raw_file(const char *filename, unsigned int *n, int byte, int i
 						F[k][j][i] = GRD_data_type((ui>>16)|(ui&0x00f0)|(ui<<16));
 				}
 	} else {
-		for (k = 0; k != n[2]; ++k)
-			for (j = 0; j != n[1]; ++j)
-				for (i = 0; i != n[0]; ++i) {
+		for (k = 0; k != n[2]; k++)
+			for (j = 0; j != n[1]; j++)
+				for (i = 0; i != n[0]; i++) {
 					in.read(reinterpret_cast<char*>(&ui), byte);
 					F[k][j][i] = GRD_data_type(ui);
 				}
@@ -864,7 +876,7 @@ int grid3d::read_dat_file(const char *filename) {
 #endif
 	periodic = 0;
 	r0[0] = r0[1] = r0[2] = 0.0;
-	for (int h = 0; h != 3; ++h)
+	for (int h = 0; h != 3; h++)
 		d[h] = 1.0;
 	in.read(reinterpret_cast<char*>(&nx), sizeof(short int));
 	in.read(reinterpret_cast<char*>(&ny), sizeof(short int));
@@ -872,15 +884,15 @@ int grid3d::read_dat_file(const char *filename) {
 	N[0] = nx - 1;
 	N[1] = ny - 1;
 	N[2] = nz - 1;
-	for (int h = 0; h != 3; ++h)
+	for (int h = 0; h != 3; h++)
 		L[h] = float(N[h]);
 	if (alloc_F()) {
 		free_F();
 		return -2;
 	}
 	while (nz--)
-		for (unsigned int j = 0; j < ny; ++j)
-			for (unsigned int i = 0; i < nx; ++i) {
+		for (unsigned int j = 0; j < ny; j++)
+			for (unsigned int i = 0; i < nx; i++) {
 				in.read(reinterpret_cast<char*>(&n), sizeof(short int));
 				F[nz][j][i] = n;
 			}
@@ -901,10 +913,10 @@ int grid3d::save_raw_file(const char *filename) {
 	ofstream out(filename, ios::binary);
 	if (!out)
 		return -1;
-	for (unsigned int k = 0; k <= N[2]; ++k)
-		for (unsigned int j = 0; j <= N[1]; ++j) {
+	for (unsigned int k = 0; k <= N[2]; k++)
+		for (unsigned int j = 0; j <= N[1]; j++) {
 			if (x_data > 1)
-				for (unsigned int i = 0; i <= N[0]; ++i)
+				for (unsigned int i = 0; i <= N[0]; i++)
 					out.write(reinterpret_cast<char*>(F[k][j] + i*x_data), sizeof(GRD_data_type));
 			else
 				out.write(reinterpret_cast<char*>(F[k][j]), (N[0] + 1)*sizeof(GRD_data_type));

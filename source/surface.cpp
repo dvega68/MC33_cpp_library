@@ -5,6 +5,7 @@
 	February 2020
 	August 2020
 	July 2021
+	February 2026
 */
 
 #include <cstdlib>
@@ -16,13 +17,13 @@
 
 using namespace std;
 
-MC33_real surface::get_isovalue() { return iso;}
+MC33_real surface::get_isovalue() { return iso; }
 
 unsigned int surface::get_num_vertices() { return nV; }
 
 unsigned int surface::get_num_triangles() { return nT; }
 
-surface::surface() : nV(0), nT(0) {}
+surface::surface() : nV(0), nT(0), sflag(8) {}
 
 void surface::clear() {
 	T.clear();
@@ -30,6 +31,7 @@ void surface::clear() {
 	N.clear();
 	color.clear();
 	nV = nT = 0;
+	sflag = 8;
 }
 
 void surface::adjustvectorlenght() {
@@ -40,8 +42,8 @@ void surface::adjustvectorlenght() {
 	N.resize(nV);
 	N.shrink_to_fit();
 	color.shrink_to_fit();
+	sflag &= ~8;
 }
-
 
 const unsigned int *surface::getTriangle(unsigned int n) { return (n < nT? T[n].v: 0); }
 
@@ -54,11 +56,13 @@ void surface::flipNormals() {
 	float *v = N[0].v;
 	for (unsigned int i = 0; i != n; i++)
 		v[i] = -v[i];
+	sflag ^= 4;
 }
 
 void surface::flipTriangles() {
 	for (auto &t : T)
 		swap(t.v[0], t.v[1]);
+	sflag ^= 2;
 }
 
 void surface::setColor(unsigned int n, unsigned char *pcolor) {
@@ -70,8 +74,7 @@ const unsigned char* surface::getColor(unsigned int n) {
 	return (n < nV? reinterpret_cast<unsigned char*>(&color[n]): 0);
 }
 
-
-#if MC33_double_precision
+#if MC33_DOUBLE_PRECISION
 #define MC33_surf_magic_num 0x6575732e //".sud"
 #define MC33_surf_magic_nu2 0x7075732e
 #define MC33_real2 float
@@ -82,6 +85,8 @@ const unsigned char* surface::getColor(unsigned int n) {
 #endif
 
 int surface::save_bin(const char *filename) {
+	if (sflag&8)
+		adjustvectorlenght();
 	ofstream out(filename, ios::binary);
 	if (!out)
 		return -1;
@@ -136,14 +141,15 @@ int surface::read_bin(const char *filename) {
 #undef MC33_surf_magic_nu2
 #undef MC33_real2
 
-#if MC33_double_precision
+#if MC33_DOUBLE_PRECISION
 #define MC33_prec 11
 #else
 #define MC33_prec 6
 #endif
 int surface::save_txt(const char* filename) {
 	ofstream out(filename);
-	adjustvectorlenght();
+	if (sflag&8)
+		adjustvectorlenght();
 	if (!out)
 		return -1;
 
@@ -158,7 +164,7 @@ int surface::save_txt(const char* filename) {
 
 	out << "\n\nTRIANGLES:\n" << nT << "\n\n";
 	for (const auto &t: T)
-		out << setw(8) << t.v[0] << " " << setw(8) << t.v[1] << " "  << setw(8) << t.v[2] << endl;
+		out << setw(8) << t.v[0] << " " << setw(8) << t.v[1] << " " << setw(8) << t.v[2] << endl;
 
 	out << "\n\nNORMALS:\n";
 	out.precision(5);
@@ -169,6 +175,65 @@ int surface::save_txt(const char* filename) {
 	for (const auto &c: color)
 		out << c << endl;
 	out << "\nEND\n";
+	return (out.good()? 0: -1);
+}
+
+int surface::save_obj(const char* filename) {
+	ofstream out(filename);
+	if (sflag&8)
+		adjustvectorlenght();
+	if (!out)
+		return -1;
+
+	out << "# isovalue: ";
+	out.precision(MC33_prec);
+	out << iso << "\n# VERTICES " << nV << ":\n";
+	out.precision(MC33_prec);
+	for (const auto &r: V)
+		out << "v " << r.v[0] << " " << r.v[1] << " " << r.v[2] << endl;
+
+	out << "# NORMALS:\n";
+	out.precision(5);
+	for (const auto &r: N)
+		out << "vn " << r.v[0] << " " << r.v[1] << " " << r.v[2] << endl;
+
+	out << "# TRIANGLES " << nT << ":\n";
+	for (const auto &t: T) {
+		string s0 = to_string(t.v[0] + 1);
+		string s1 = to_string(t.v[1] + 1);
+		string s2 = to_string(t.v[2] + 1);
+		out << "f " << s0 << "//" << s0 << " " << s1 << "//" << s1 << " " << s2 << "//" << s2 << endl;
+	}
+	out << "# END";
+	return (out.good()? 0: -1);
+}
+
+int surface::save_ply(const char* filename, const char* author, const char* object) {
+	ofstream out(filename);
+	if (sflag&8)
+		adjustvectorlenght();
+	if (!out)
+		return -1;
+	char empty = 0;
+	if (!author)
+		author = &empty;
+	if (!object)
+		object = &empty;
+	out << "ply\nformat ascii 1.0\ncomment author: " << author << "\ncomment object: " << object;
+	out << "\nelement vertex " << nV << "\nproperty float x\nproperty float y\nproperty float z";
+	out << "\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nelement face " << nT;
+	out << "\nproperty list uchar int vertex_index\nend_header";
+	for (unsigned int i = 0; i < nV; i++) {
+		auto v = V[i].v;
+		out << "\n" << v[0] << " " << v[1] << " " << v[2] << " ";
+		unsigned char* c = reinterpret_cast<unsigned char*>(&color[i]);
+		out << (int)c[0] << " " << (int)c[1] << " " << (int)c[2];
+	}
+	for (unsigned int i = 0; i < nT; i++) {
+		auto v = T[i].v;
+		out << "\n3 " << v[0] << " " << v[1] << " " << v[2];
+	}
+	out << "\n";
 	return (out.good()? 0: -1);
 }
 
