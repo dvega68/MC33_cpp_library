@@ -8,6 +8,7 @@
 	June 2021
 	July 2021
 	December 2021
+	February 2026
 	This is an open source code. The distribution and use rights are under the terms of the MIT license (https://opensource.org/licenses/MIT)
 */
 
@@ -17,8 +18,10 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <ctime>
 #include <cstring>
+#include <cmath>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <io.h>
@@ -45,10 +48,10 @@
 #include <FL/gl.h>
 #include <FL/fl_ask.H>
 
+#define MC33_USE_DRAW_OPEN_GL
 /*
-#include <MC33.h> // put -lMC33++ in the linker libraries
+#include "../include/MC33.h" // put -lMC33++ in the linker libraries
 /*/
-//#define GRD_type_size 8
 #include "../source/MC33.cpp"
 #include "../source/grid3d.cpp"
 #include "../source/surface.cpp"
@@ -61,7 +64,7 @@ class gl_window : public Fl_Gl_Window {
 	float light_position[2][4];
 	float MGL[16];
 	float oldM[9], iniV[3];
-	float Tx, Ty, scale_factor;
+	float Tx, Ty, mhw, scale_factor;
 	int oldx, oldy;
 	float scale_size;
 	float x_c, y_c, z_c;
@@ -73,10 +76,13 @@ class gl_window : public Fl_Gl_Window {
 		glViewport(0, 0, w, h);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		if (w < h)
-			glOrtho(-1.0f, 1.0f, -1.0f*h/w, 1.0f*h/w, -10.0f, 10.0f);
-		else
-			glOrtho(-1.0f*w/h, 1.0f*w/h, -1.0f, 1.0f, -10.0f, 10.0f);
+		if (w < h) {
+			mhw = 1.0f/w;
+			glOrtho(-1.0f, 1.0f, -mhw*h, mhw*h, -10.0f, 10.0f);
+		} else {
+			mhw = 1.0f/h;
+			glOrtho(-mhw*w, mhw*w, -1.0f, 1.0f, -10.0f, 10.0f);
+		}
 		glMatrixMode(GL_MODELVIEW);
 	}
 	
@@ -122,8 +128,8 @@ class gl_window : public Fl_Gl_Window {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLightfv(GL_LIGHT0, GL_POSITION, light_position[0]);
 		glLightfv(GL_LIGHT1, GL_POSITION, light_position[1]);
-		MGL[12] = Tx*scale_size - x_c*MGL[0] - y_c*MGL[4] - z_c*MGL[8];
-		MGL[13] = Ty*scale_size - x_c*MGL[1] - y_c*MGL[5] - z_c*MGL[9];
+		MGL[12] = Tx*MGL[15] - x_c*MGL[0] - y_c*MGL[4] - z_c*MGL[8];
+		MGL[13] = Ty*MGL[15] - x_c*MGL[1] - y_c*MGL[5] - z_c*MGL[9];
 		MGL[14] = -x_c*MGL[2] - y_c*MGL[6] - z_c*MGL[10];
 		glLoadMatrixf(MGL);
 
@@ -152,6 +158,7 @@ class gl_window : public Fl_Gl_Window {
 public:
 	gl_window(int X,int Y,int W,int H, const char*L = 0) : Fl_Gl_Window(X, Y, W, H, L) {
 		end();
+		surf = 0;
 		Tx = Ty = bgr = bgg = bgb = x_c = y_c = z_c = 0.0f;
 		scale_factor = scale_size = 1.0f;
 		set_light_pos(0, 1.5f, -0.5f, 2.0f);
@@ -254,16 +261,15 @@ public:
 					break;
 					case FL_MIDDLE_MOUSE:
 					{
-						scale_factor += (y - oldy)*scale_factor*0.001f;
+						scale_factor += (y - oldy)*scale_factor*(1.0f/1024);
 						MGL[15] = scale_factor*scale_size;
 						oldy = y;
 					}
 					break;
 					case FL_RIGHT_MOUSE:
 					{
-						float t = 2*(w() > h() ? scale_factor/h() : scale_factor/w());
-						Tx += (x - oldx)*t;
-						Ty -= (y - oldy)*t;
+						Tx += ((x - oldx)<<1)*mhw;
+						Ty -= ((y - oldy)<<1)*mhw;
 						oldx = x;
 						oldy = y;
 					}
@@ -544,18 +550,47 @@ private:
 	void save_cb2() {
 		if (ls.empty())
 			return;
-		char *s = fl_file_chooser("Save surface file", "Surface files(*.{txt,sup})", "");
+		char *s = fl_file_chooser("Save surface file", "Surface files(*.{txt,sup})\tPolygon File Format(*.ply)\tModel/obj(*.obj)", "");
 		if (!s)
 			return;
+		char *c = strrchr(s, '.');
+		int t = -1;
+		if (c) {
+			if (!strcmp(c, ".sup"))
+				t = 3;
+			else if (!strcmp(c, ".txt"))
+				t = 2;
+			else if (!strcmp(c, ".ply"))
+				t = 1;
+			else if (!strcmp(c, ".obj"))
+				t = 0;
+		}
+		if (t < 0) {
+			char *fn = s;
+			int n = strlen(s);
+			s = new (nothrow) char[n + 5];
+			if (!s)
+				return;
+			strcpy(s, fn);
+			strcpy(s + n, ".obj");
+		}
 		if (ask_replace_file(s)) {
-			char *c = strrchr(s, '.');
-			if (c) {
-				if (strcmp(c, ".sup"))
-					cS->save_txt(s);
-				else
+			switch (t) {
+				case 3:
 					cS->save_bin(s);
+					break;
+				case 2:
+					cS->save_txt(s);
+					break;
+				case 1:
+					cS->save_ply(s);
+					break;
+				default:
+					cS->save_obj(s);
 			}
 		}
+		if (t < 0)
+			delete[] s;
 	}
 
 	static void save_cb(Fl_Widget*, void *userdata) {
@@ -847,7 +882,7 @@ public:
 			sg_add_button->callback((Fl_Callback*)subgrid_add_cb, (void*)this);
 			o = new Fl_Button(145, 165, 50, 20, "Accept");
 			o->callback((Fl_Callback*)subgrid_accept_cb, (void*)this);
-    subgrid_window->end();
+		subgrid_window->end();
 		subgrid_window->set_modal();
 		defaultcolor = 0xff669900;
 		MC.set_default_surface_color(reinterpret_cast<unsigned char*>(&defaultcolor));
