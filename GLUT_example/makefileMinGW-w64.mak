@@ -2,7 +2,7 @@
 CPP      = g++
 SOURCE   = TestMC33_glut.cpp
 OBJ      = $(SOURCE:.cpp=.o)
-LIBS     = -static -lstdc++ -lfreeglut_static -lglu32 -lopengl32 -lgdi32 -lwinmm -lm -m64 -s
+LIBS     = -static -lstdc++ -lfreeglut -lglu32 -lopengl32 -lgdi32 -lwinmm -lm -m64 -s
 CPPINCS  =
 BIN      = TestMC33_glut
 OPTIM		 = -Ofast -m64 -Wall -Wextra -funroll-loops

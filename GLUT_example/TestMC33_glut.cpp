@@ -3,6 +3,8 @@
 	Programmed by: David Vega - dvega@uc.edu.ve
 	June 2021
 	December 2021
+	October 2021
+	February 2026
 	This is an open source code. The distribution and use rights are under the terms of the MIT license (https://opensource.org/licenses/MIT)
 */
 
@@ -33,7 +35,7 @@
 #endif
 
 /*
-#include <MC33.h> // put -lMC33++ in the linker libraries
+#include "../include/MC33.h" // put "../lib/libMC33++.a" in the linker libraries
 /*/
 //#define GRD_type_size 8
 #include "../source/MC33.cpp"
@@ -50,12 +52,12 @@ list <surface>::iterator cS;
 grid3d G;
 MC33 MC;
 
-surface *surf;
+surface *surf = 0;
 float bgr, bgg, bgb;
 float lightPosition[2][4];
 float MGL[16];
 float oldM[9], iniV[3];
-float tX, tY;
+float tX, tY, mhw = (HEIGHT < WIDTH? 1.0f/HEIGHT: 1.0f/WIDTH);
 int oldX, oldY;
 float scaleSize, scaleFactor;
 float cX, cY, cZ;
@@ -109,14 +111,16 @@ void reshape(int w, int h) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	if (w < h) {
-		float f = (float)h/w;
-		txtF = 8.0f/w;
+		mhw = 1.0f/w;
+		float f = (float)h*mhw;
+		txtF = 8.0f*mhw;
 		txtX = 2*txtF - 1.0f;
 		txtY = f - txtF*(26.0f/8);
 		glOrtho(-1.0f, 1.0f, -f, f, -10.0f, 10.0f);
 	} else {
-		float f = (float)w/h;
-		txtF = 8.0f/h;
+		mhw = 1.0f/h;
+		float f = (float)w*mhw;
+		txtF = 8.0f*mhw;
 		txtX = 2*txtF - f;
 		txtY = 1.0f - txtF*(26.0f/8);
 		glOrtho(-f, f, -1.0f, 1.0f, -10.0f, 10.0f);
@@ -198,7 +202,7 @@ void info_text() {
 	glDisable(GL_LIGHTING);
 	if (showMessage || saveIso) {
 		glColor4f(0.0f, 0.0f, 1.0f, 0.8f);
-		float halfw = (saveIso || setSurfColor? 48.0f: 32.0f)*txtF;
+		float halfw = (saveIso || setSurfColor? 55.0f: 32.0f)*txtF;
 		glEnable(GL_BLEND);
 		glRectf(-halfw, -16.0f*txtF, halfw, 16.0f*txtF);
 		glDisable(GL_BLEND);
@@ -206,7 +210,7 @@ void info_text() {
 		displaytext("Press Esc to close this box", txtF - halfw, -15.0f*txtF);
 		if (saveIso) {
 			if (showMessage) {
-				displaytext("Type the surface filename (*.txt or *.sup):", -43*txtF, (20.0f/8)*txtF);
+				displaytext("Type the filename (*.obj, *.ply, *.txt or *.sup):", -49*txtF, (20.0f/8)*txtF);
 				glColor3f(1.0f, 1.0f, 1.0f);
 				displaytext(auxInputString.c_str(), -40*txtF, (-20.0f/8)*txtF);
 				glutBitmapCharacter(GLUT_BITMAP_8_BY_13, '_');
@@ -223,23 +227,23 @@ void info_text() {
 		if (showHelp) {
 			glColor4f(0.20f, 0.20f, 0.20f, 0.6f);
 			glEnable(GL_BLEND);
-			glRectf(-45.0f*txtF, -27.5f*txtF, 45.0f*txtF, 28.5f*txtF);
+			glRectf(-46.0f*txtF, -27.5f*txtF, 46.0f*txtF, 28.5f*txtF);
 			glDisable(GL_BLEND);
 			glColor3f(1.0f, 1.0f, 1.0f);
-			float f = -41*txtF;
-			displaytext("KEYBOARD MENU:", -30*txtF, (90.0f/4)*txtF);
-			displaytext("I            : Enter an isovalue", f, (70.0f/4)*txtF);
-			displaytext("H            : Show/hide this information", f, (55.0f/4)*txtF);
-			displaytext("S            : Save the current surface", f, (40.0f/4)*txtF);
-			displaytext("C            : Sets the surface color", f, (25.0f/4)*txtF);
-			displaytext("R            : Resets the view", f, (10.0f/4)*txtF);
-			displaytext("F            : Swap back and front faces", f, -(5.0f/4)*txtF);
-			displaytext("L            : back face lighting on/off", f, -(20.0f/4)*txtF);
-			displaytext("Escape key   : Hide help and messages", f, (-35.0f/4)*txtF);
-			displaytext("Space bar    : Show the next surface", f, (-50.0f/4)*txtF);
-			displaytext("Alt + Space  : Show the previous surface", f, (-65.0f/4)*txtF);
-			displaytext("Alt + Delete : Delete the current surface", f, (-80.0f/4)*txtF);
-			displaytext("Alt + Q      : Exits the program", f, (-95.0f/4)*txtF);
+			float f = -43*txtF;
+			displaytext("KEYBOARD MENU:", -32*txtF, (90.0f/4)*txtF);
+			displaytext("I              : Enter an isovalue", f, (70.0f/4)*txtF);
+			displaytext("H              : Show/hide this information", f, (55.0f/4)*txtF);
+			displaytext("S              : Save the current surface", f, (40.0f/4)*txtF);
+			displaytext("C              : Sets the surface color", f, (25.0f/4)*txtF);
+			displaytext("R              : Resets the view", f, (10.0f/4)*txtF);
+			displaytext("F              : Swap back and front faces", f, -(5.0f/4)*txtF);
+			displaytext("L              : back face lighting on/off", f, -(20.0f/4)*txtF);
+			displaytext("Escape key     : Hide help and messages", f, (-35.0f/4)*txtF);
+			displaytext("Space bar      : Show the next surface", f, (-50.0f/4)*txtF);
+			displaytext("Shift + Space  : Show the previous surface", f, (-65.0f/4)*txtF);
+			displaytext("Shift + Delete : Delete the current surface", f, (-80.0f/4)*txtF);
+			displaytext("Alt + Q        : Exits the program", f, (-95.0f/4)*txtF);
 		} else {
 			glColor3f(0.75f, 0.75f, 0.75f);
 			displaytext("Press h for help", -32*txtF - txtX , txtY);
@@ -268,8 +272,8 @@ void draw() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition[0]);
 	glLightfv(GL_LIGHT1, GL_POSITION, lightPosition[1]);
-	MGL[12] = tX*scaleSize - cX*MGL[0] - cY*MGL[4] - cZ*MGL[8];
-	MGL[13] = tY*scaleSize - cX*MGL[1] - cY*MGL[5] - cZ*MGL[9];
+	MGL[12] = tX*MGL[15] - cX*MGL[0] - cY*MGL[4] - cZ*MGL[8];
+	MGL[13] = tY*MGL[15] - cX*MGL[1] - cY*MGL[5] - cZ*MGL[9];
 	MGL[14] = -cX*MGL[2] - cY*MGL[6] - cZ*MGL[10];
 	//MGL[15] = scaleFactor*scaleSize;
 	glLoadMatrixf(MGL);
@@ -323,9 +327,8 @@ void motion(int x, int y) {
 		MGL[6] = qm[2]*oldM[3] + qm[5]*oldM[4] + qm[8]*oldM[5];
 		MGL[10] = qm[2]*oldM[6] + qm[5]*oldM[7] + qm[8]*oldM[8];
 	} else if (mouseButton == mouseButtonMove) {
-		float t = 2*(WIDTH > HEIGHT ? scaleFactor/HEIGHT : scaleFactor/WIDTH);
-		tX += (x - oldX)*t;
-		tY -= (y - oldY)*t;
+		tX += ((x - oldX)<<1)*mhw;
+		tY -= ((y - oldY)<<1)*mhw;
 		oldX = x;
 		oldY = y;
 	} else if (mouseButton == mouseButtonScale) {
@@ -436,16 +439,36 @@ void select_iso(bool next) {
 	fill_surface_info();
 }
 
-void save_iso2() {
-	const char *c = strrchr(auxInputString.c_str(), '.');
-	if (c) {
-		if (strcmp(c,".sup"))
-			c = 0;
+void save_iso2(int t) {
+	switch (t) {
+		case 0:
+			surf->save_obj(auxInputString.c_str());
+			break;
+		case 1:
+			surf->save_txt(auxInputString.c_str());
+			break;
+		case 2:
+			surf->save_ply(auxInputString.c_str());
+			break;
+		case 3:
+			surf->save_bin(auxInputString.c_str());
 	}
-	if (c)
-		surf->save_bin(auxInputString.c_str());
-	else
-		surf->save_txt(auxInputString.c_str());
+}
+
+int sel_surface_type() {
+	auto pos = auxInputString.rfind('.');
+	if (pos != string::npos) {
+		if (!auxInputString.compare(pos, 4, ".sup"))
+			return 3;
+		else if (!auxInputString.compare(pos, 4, ".txt"))
+			return 2;
+		else if (!auxInputString.compare(pos, 4, ".ply"))
+			return 1;
+		else if (!auxInputString.compare(pos, 4, ".obj"))
+			return 0;
+	}
+	auxInputString += ".obj";
+	return 0;
 }
 
 // called when a mouse button is pressed
@@ -490,12 +513,14 @@ void keyb_string(unsigned char c, int, int) {
 			inputIso = false;
 		} else if (saveIso) {
 			hide_message();
-			if (auxInputString.empty())
-				saveIso = false;
-			else if (!file_exist(auxInputString.c_str())) {
-				saveIso = false;
-				save_iso2();
-			}
+			if (!auxInputString.empty()) {
+				int n = sel_surface_type();
+				if (!file_exist(auxInputString.c_str())) {
+					saveIso = 0;
+					save_iso2(n);
+				}
+			} else
+				saveIso = 0;
 		} else if (setSurfColor) {
 			setSurfColor = false;
 			hide_message();
@@ -543,7 +568,7 @@ void save_iso() {
 void keyboard(unsigned char key, int, int) {
 	if (saveIso) {
 		if (key == 'Y' || key == 'y')
-			save_iso2();
+			save_iso2(sel_surface_type());
 		saveIso = false;
 	} else
 		switch(key) {
@@ -552,11 +577,11 @@ void keyboard(unsigned char key, int, int) {
 			hide_message();
 			break;
 		case ' ':
-			select_iso(GLUT_ACTIVE_ALT != glutGetModifiers());
+			select_iso(!(GLUT_ACTIVE_SHIFT&glutGetModifiers()));
 			break;
 		case '\b': // Backspace key
 		case 127: // Delete key
-			if (GLUT_ACTIVE_ALT == glutGetModifiers()) // if the Control key is pressed
+			if (GLUT_ACTIVE_SHIFT&glutGetModifiers()) // if the Alt key is pressed
 				delete_iso();
 			break;
 		case 'C':
@@ -595,7 +620,7 @@ void keyboard(unsigned char key, int, int) {
 			break;
 		case 'Q':
 		case 'q':
-			if (GLUT_ACTIVE_ALT == glutGetModifiers()) // if the Control key is pressed
+			if (GLUT_ACTIVE_ALT&glutGetModifiers()) // if the Alt key is pressed
 				exit(0);
 			break;
 		case 'R':
