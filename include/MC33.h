@@ -7,7 +7,7 @@
 	This library is the C++ version of the library described in the paper:
 	Vega, D., Abache, J., Coll, D., A Fast and Memory Saving Marching Cubes 33
 	implementation with the correct interior test, Journal of Computer Graphics
-	Techniques (JCGT), vol. 8, no. 3, 1–17, 2019.
+	Techniques (JCGT), vol. 8, no. 3, 1â€“17, 2019.
 */
 
 #ifndef MC33_h_
@@ -19,10 +19,10 @@
 #include <MC33.h>
 
 //2. Read a grid file.
-	grid3D G;
+	grid3d G;
 	G.read_dat_file("filename.dat");
 
-//3. create a MC33 object and assign it the grid3D.
+//3. create a MC33 object and assign it the grid3d.
 	MC33 MC;
 	MC.set_grid3d(G);
 //4. calculate an isosurface.
