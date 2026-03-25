@@ -5,6 +5,7 @@
 	December 2021
 	October 2021
 	February 2026
+	March 2026
 	This is an open source code. The distribution and use rights are under the terms of the MIT license (https://opensource.org/licenses/MIT)
 */
 
@@ -34,6 +35,7 @@
 #include <unistd.h>
 #endif
 
+#define MC33_USE_DRAW_OPEN_GL
 /*
 #include "../include/MC33.h" // put "../lib/libMC33++.a" in the linker libraries
 /*/
