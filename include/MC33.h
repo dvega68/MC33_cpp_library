@@ -1,13 +1,14 @@
 /*
 	File: MC33.h
 	Programmed by: David Vega - dvega@uc.edu.ve
-	version: 5.3
+	version: 5.4
 	March 2022
 	February 2026
+	March 2026
 	This library is the C++ version of the library described in the paper:
 	Vega, D., Abache, J., Coll, D., A Fast and Memory Saving Marching Cubes 33
 	implementation with the correct interior test, Journal of Computer Graphics
-	Techniques (JCGT), vol. 8, no. 3, 1–17, 2019.
+	Techniques (JCGT), vol. 8, no. 3, 1-17, 2019.
 */
 
 #ifndef MC33_h_
@@ -25,6 +26,7 @@
 //3. create a MC33 object and assign it the grid3d.
 	MC33 MC;
 	MC.set_grid3d(G);
+
 //4. calculate an isosurface.
 	surface S;
 	MC.calculate_isosurface(S, isovalue);
@@ -34,15 +36,13 @@
 /********************************CUSTOMIZING**********************************/
 //The following defines can be only changed before compiling the library:
 //#define GRD_INTEGER // for dataset with integer type
-#define GRD_TYPE_SIZE 4 // 1, 2, 4 or 8 (8 for double, if not defined GRD_INTEGER)
-#define MC33_DOUBLE_PRECISION 0 // 1 means double type for MC33 class members, used only with double or size 8 integer grid data
+//#define GRD_TYPE_SIZE 8 // 1, 2, 4 or 8 (8 for double, if not defined GRD_INTEGER)
+//#define MC33_DOUBLE_PRECISION 0 // 1 means double type for MC33 class members, used only with double or size 8 integer grid data
 //#define GRD_ORTHOGONAL // If defined, the library only works with orthogonal grids.
-//#define MC33_NORMAL_NEG // the front and back surfaces are exchanged.
-//#define DEFAULT_SURFACE_COLOR 0xFF80FF40// RGBA 0xAABBGGRR: red 64, green 255, blue 128
 /*****************************************************************************/
 
 #define MC33_VERSION_MAJOR 5
-#define MC33_VERSION_MINOR 3
+#define MC33_VERSION_MINOR 4
 
 #ifdef GRD_INTEGER
 #if GRD_TYPE_SIZE == 4
@@ -123,6 +123,7 @@ private:
 //Interpolation functions:
 	GRD_data_type trilinear(double *r) const;
 	GRD_data_type tricubic(double *r) const;
+	GRD_data_type tri_weighted_quadratic(double *r) const;
 public:
 //Get pointers to some class members:
 	const unsigned int* get_N();
@@ -147,7 +148,7 @@ public:
 //Calculate a value at position (x, y, z) by interpolating the grid values.
 //This function don't work with subgrids.
 	GRD_data_type interpolated_value(double x, double y, double z);
-//Select the interpolation type, 1 for trilinear and 3 for tricubic.
+//Select the interpolation type, 1 for trilinear, 2 for tri weighted-quadratic and 3 for tricubic.
 	int set_interpolation(int i);
 
 //Modifying the grid parameters:
@@ -369,9 +370,39 @@ public:
 	~MC33();
 };
 
-#ifndef DEFAULT_SURFACE_COLOR
-#define DEFAULT_SURFACE_COLOR 0xff5c5c5c; // grey red 92 green 92 blue 92
-#endif
+#ifndef GRD_ORTHOGONAL
+//c = Ab, A is a 3x3 upper triangular matrix. If t != 0, A is transposed.
+template<typename T> void T_multTSA_b(const double (*A)[3], T *b, T *c, int t) {
+	if (t) {
+		c[2] = A[0][2]*b[0] + A[1][2]*b[1] + A[2][2]*b[2];
+		c[1] = A[0][1]*b[0] + A[1][1]*b[1];
+		c[0] = A[0][0]*b[0];
+	} else {
+		c[0] = A[0][0]*b[0] + A[0][1]*b[1] + A[0][2]*b[2];
+		c[1] = A[1][1]*b[1] + A[1][2]*b[2];
+		c[2] = A[2][2]*b[2];
+	}
+}
+//Performs the multiplication of the matrix A and the vector b: c = Ab. If t != 0, A is transposed.
+template<typename T> void T_multA_b(const double (*A)[3], T *b, T *c, int t) {
+	double u,v;
+	if (t) {
+		u = A[0][0]*b[0] + A[1][0]*b[1] + A[2][0]*b[2];
+		v = A[0][1]*b[0] + A[1][1]*b[1] + A[2][1]*b[2];
+		c[2] = A[0][2]*b[0] + A[1][2]*b[1] + A[2][2]*b[2];
+	} else {
+		u = A[0][0]*b[0] + A[0][1]*b[1] + A[0][2]*b[2];
+		v = A[1][0]*b[0] + A[1][1]*b[1] + A[1][2]*b[2];
+		c[2] = A[2][0]*b[0] + A[2][1]*b[1] + A[2][2]*b[2];
+	}
+	c[0] = u;
+	c[1] = v;
+}
+
+extern void (*multAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
+extern void (*mult_TSAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
+extern void (*mult_Abf)(const double (*)[3], MC33_real *, MC33_real *, int);
+#endif // GRD_ORTHOGONAL
 
 #ifndef compiling_libMC33
 
@@ -414,40 +445,6 @@ void surface::drawdraft() {
 	glEnable(GL_LIGHTING);
 }
 #endif // MC33_USE_DRAW_OPEN_GL
-
-#ifndef GRD_ORTHOGONAL
-//c = Ab, A is a 3x3 upper triangular matrix. If t != 0, A is transposed.
-template<typename T> void T_multTSA_b(const double (*A)[3], T *b, T *c, int t) {
-	if (t) {
-		c[2] = A[0][2]*b[0] + A[1][2]*b[1] + A[2][2]*b[2];
-		c[1] = A[0][1]*b[0] + A[1][1]*b[1];
-		c[0] = A[0][0]*b[0];
-	} else {
-		c[0] = A[0][0]*b[0] + A[0][1]*b[1] + A[0][2]*b[2];
-		c[1] = A[1][1]*b[1] + A[1][2]*b[2];
-		c[2] = A[2][2]*b[2];
-	}
-}
-//Performs the multiplication of the matrix A and the vector b: c = Ab. If t != 0, A is transposed.
-template<typename T> void T_multA_b(const double (*A)[3], T *b, T *c, int t) {
-	double u,v;
-	if (t) {
-		u = A[0][0]*b[0] + A[1][0]*b[1] + A[2][0]*b[2];
-		v = A[0][1]*b[0] + A[1][1]*b[1] + A[2][1]*b[2];
-		c[2] = A[0][2]*b[0] + A[1][2]*b[1] + A[2][2]*b[2];
-	} else {
-		u = A[0][0]*b[0] + A[0][1]*b[1] + A[0][2]*b[2];
-		v = A[1][0]*b[0] + A[1][1]*b[1] + A[1][2]*b[2];
-		c[2] = A[2][0]*b[0] + A[2][1]*b[1] + A[2][2]*b[2];
-	}
-	c[0] = u;
-	c[1] = v;
-}
-
-extern void (*multAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
-extern void (*mult_TSAbf)(const double (*)[3], MC33_real *, MC33_real *, int);
-extern void (*mult_Abf)(const double (*)[3], MC33_real *, MC33_real *, int);
-#endif // GRD_ORTHOGONAL
 
 #endif // compiling_libMC33
 
