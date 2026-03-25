@@ -1,10 +1,10 @@
-### Feel free to use the MC33++ library.
+### Feel free to use the Marching cubes 33 C++ library.
 
 ---
 
 #### INFO:
 
-MC33++ library version 5.3
+MC33++ library version 5.4
 
 This library is a C++ version based on the MC33 library of the paper:  
 Vega, D., Abache, J., Coll, D., [A Fast and Memory-Saving Marching Cubes 33 implementation with the correct interior test](http://jcgt.org/published/0008/03/01), *Journal of Computer Graphics Techniques (JCGT)*, vol. 8, no. 3, 1-18, 2019.
@@ -43,6 +43,7 @@ There are 4 options that can be modified before compiling the library. You can d
 
 1. To change the data type of the grid (the default value is float) define GRD_TYPE_SIZE and/or GRD_INTEGER (MC33.h). For example:
 	```c
+	//#define GRD_INTEGER
 	#define GRD_TYPE_SIZE 8 // the data type is double
 
 	#define GRD_INTEGER
@@ -55,20 +56,27 @@ There are 4 options that can be modified before compiling the library. You can d
 	#define GRD_TYPE_SIZE 1 // the data type is unsigned char
 	```
 
-2. If you do not use inclined grids, you can define GRD_ORTHOGONAL (MC33.h):
-	```c
-	#define GRD_ORTHOGONAL
-	```
-
-3. By default the members of MC33 class are float. The member can be changed to double by defining MC33_DOUBLE_PRECISION to 1 (MC33.h). This option is also enabled by defining GRD_TYPE_SIZE to 8. And it is disabled if GRD_TYPE_SIZE is defined to 1 or 2 when GRD_INTEGER is defined. The vertex array type of `surface` class is also modified when using this option.
+2. By default the members of MC33 class are float. The member can be changed to double by defining MC33_DOUBLE_PRECISION to 1 (MC33.h). This option is also enabled by defining GRD_TYPE_SIZE to 8. And it is disabled if GRD_TYPE_SIZE is defined to 1 or 2 when GRD_INTEGER is defined. The vertex array type of `surface` class is also modified when using this option.
 	```c
 	#define MC33_DOUBLE_PRECISION 1 // double type for MC33 class members
+	```
+
+3. If you do not use inclined grids, you can define GRD_ORTHOGONAL (MC33.h):
+	```c
+	#define GRD_ORTHOGONAL
 	```
 
 4. If you need to exchange the front and back surfaces, define MC33_NORMAL_NEG (libMC33++.cpp):
 	```c
 	#define MC33_NORMAL_NEG
 	```
+
+5. The default color of isosurfaces, can be changed (libMC33++.cpp):
+	```c
+	#define DEFAULT_SURFACE_COLOR 0xFF18A0C8// RGBA 0xAABBGGRR: red 200, green 160, blue 24
+	```
+
+6. In libMC33++.cpp there are other two macros that can be changed: `USE_INTERNAL_SIGNBIT` and `USE_MM_RSQRT_SS`.
 
 ---
 
@@ -82,10 +90,10 @@ There are 4 options that can be modified before compiling the library. You can d
 
 	Include the header file in your C++ code:
 	```c
+	#define MC33_USE_DRAW_OPEN_GL // only once, if you use the surface::draw() function
 	#include <MC33.h>
 	```
 	and put in the linker options of your program makefile: -lMC33++
-
 
 2. Instead of compiling the library, you can directly include the library code files in your code (see the FLTK or the GLUT example code). Put at the beginning of your C++ code:
 	```c
@@ -113,7 +121,7 @@ For the FLTK example in any operating system you also can use the fltk-config sc
 path/fltk-1.X.Y/fltk-config --use-gl --compile TestMC33.cpp
 ```
 
-The makefiles use the -Ofast optimization option and the fltk-config script uses a lower optimization level.
+The makefiles use the `-Ofast` optimization option and the fltk-config script uses a lower optimization level.
 
 In the GLUT example, the file containing the grid must be passed to the program on the command line, and no other grid files can be read from the running program. The grid file can be dragged and dropped into the executable in the Windows File Explorer. Examples of usage of the `generate_grid_from_fn` function of the `grid3d` class were included in this code, and are available if the grid file is not specified.
 
@@ -197,7 +205,7 @@ If fn (the last argument of `generate_grid_from_fn`) is NULL, an empty grid will
 
 If you already have a data array of the same type as the data in the `grid3d` class, you can use the `set_data_pointer` function to set the internal pointers to the grid data. This avoids duplicating the data. When the `grid3d` object is destroyed, the external data will not be modified.
 
-This library contains interpolation functions (trilinear and tricubic type so far). The default interpolation function is the trilinear type. It can be changed to tricubic using the `set_interpolation function`. The `interpolated_value(x, y, z)` function is used to get the interpolated value at the x, y, z position.
+This library contains interpolation functions (trilinear, tricubic and tri weighted-quadratic type so far). The default interpolation function always returns a NAN value. It can be changed to another function using the `set_interpolation function`. The `interpolated_value(x, y, z)` function is used to get the interpolated value at the x, y, z position.
 
 ```c
   grid3d G;
@@ -205,15 +213,18 @@ This library contains interpolation functions (trilinear and tricubic type so fa
   std::cout.precision(9);
   std::cout << "\nSphere: "  << fs(2.3, 2.3, 2.3); // value at a grid point
   std::cout << " " << fs(2.301, 2.302, 2.301); // point that is not on the grid
-  //G.set_interpolation(1);
+  G.set_interpolation(1);
   std::cout << "\nLinear: " << G.interpolated_value(2.3, 2.3, 2.3);
+  std::cout << " " << G.interpolated_value(2.301, 2.302, 2.301);
+  G.set_interpolation(2);
+  std::cout << "\nWeighted Quadratic: " << G.interpolated_value(2.3, 2.3, 2.3);
   std::cout << " " << G.interpolated_value(2.301, 2.302, 2.301);
   G.set_interpolation(3);
   std::cout << "\n Cubic: "  << G.interpolated_value(2.3, 2.3, 2.3);
   std::cout << " " << G.interpolated_value(2.301, 2.302, 2.301);
   G.set_interpolation(0); // no valid value
   std::cout << "\n   Nan: "  << G.interpolated_value(2.3, 2.3, 2.3);
-  std::cout << " " << G.interpolated_value(2.301, 2.302, 2.301);
+  std::cout << " " << G.interpolated_value(2.301, 2.302, 2.301) << "\n";
 ```
 
 For more information, see the `grid3d` class in the MC33.h file.
@@ -222,7 +233,7 @@ For more information, see the `grid3d` class in the MC33.h file.
 
 #### OTHERS:
 
-To display the surface, you can use the `draw()` and `drawdfaft()` functions of the `surface` class by defining `MC33_USE_DRAW_OPEN_GL` (in only one of the project files) before including the MC33.h file in your code. These functions use the OpenGL library. Alternatively, you can implement your own drawing functions in your code after including MC33.h.
+To display the surface, you can use the `draw()` and `drawdfaft()` functions of the `surface` class by defining `MC33_USE_DRAW_OPEN_GL` (in only one of the project files) before including the MC33.h file in your code. These functions use the OpenGL library. Alternatively, you can implement your own drawing functions in your code after including MC33.h. 
 
 To calculate the size (in bytes) of an isosurface, without calculating the isosurface, use:
 ```c
@@ -234,7 +245,7 @@ where iso is the isovalue (a `float` or `double`), nV and nT are unsigned intege
 ```
 See [this link](https://stackoverflow.com/questions/65066235/estimating-size-of-marching-cubes-output-geometry)
 
-Two new funtions where added to save the surface: `surface::save_obj` and `surface::save_ply`, the first saves the surface data in a Wavefront .obj file, the other saves the data in a "Polygon File Format" (.ply) file.
+Two funtions where added to save the surface: `surface::save_obj` and `surface::save_ply`, the first saves the surface data in a Wavefront .obj file, the other saves the data in a "Polygon File Format" (.ply) file.
 
 ---
 
