@@ -19,7 +19,6 @@ RM       = rm -f
 all:	all-before $(BIN) all-after
 
 $(BIN): $(OBJ)
-	#$(SOURCE)
 	$(CPP) -o $(BIN) $(OBJ) $(LDFLAGS)
 
 clean: clean-custom
