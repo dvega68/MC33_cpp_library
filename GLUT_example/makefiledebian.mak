@@ -5,7 +5,7 @@ OBJ      = $(SOURCE:.cpp=.o)
 LIBS     = -lglut -lGLU -lGL -ldl -lm -s
 CPPINCS  =
 BIN      = TestMC33_glut
-OPTIM		 = -Ofast -Wall -Wextra -funroll-loops
+OPTIM    = -Ofast -Wall -Wextra -funroll-loops
 CPPFLAGS = $(CPPINCS) -std=c++11 $(OPTIM)
 RM       = rm -f
 
@@ -17,7 +17,6 @@ RM       = rm -f
 all:	all-before $(BIN) all-after
 
 $(BIN): $(OBJ)
-	#$(SOURCE)
 	$(CPP) -o $(BIN) $(OBJ) $(LIBS)
 
 clean: clean-custom
