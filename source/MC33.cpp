@@ -13,13 +13,26 @@
 	January 2022
 	March 2022
 	February 2026
+	March 2026
 */
+
+#ifndef DEFAULT_SURFACE_COLOR
+#define DEFAULT_SURFACE_COLOR 0xff5c5c5c; // grey red 92 green 92 blue 92
+#endif
 
 #ifdef _MSC_VER
 #pragma warning( push )
 // disable warning when a double value is assigned to float variable
 #pragma warning( disable : 4244 )
 #endif
+
+#ifndef S_BIG_ENDIAN
+#if !defined(_MSC_VER) || defined(__clang__)
+#define S_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#else
+#define S_BIG_ENDIAN 0
+#endif
+#endif // S_BIG_ENDIAN
 
 #include <cstring>
 #include <fstream>
@@ -28,7 +41,11 @@
 
 #include "../include/MC33.h"
 
-#if defined (__SSE__) || ((defined (_M_IX86) || defined (_M_X64)) && !defined(_CHPE_ONLY_))
+#ifndef USE_MM_RSQRT_SS
+#define USE_MM_RSQRT_SS 1 /* definition of invSqrt function, see marching_cubes_33.c */
+#endif
+
+#if defined (__SSE__) || ((defined (_M_IX86) || defined (_M_X64)) && !defined(_CHPE_ONLY_)) && USE_MM_RSQRT_SS
 // https://stackoverflow.com/questions/59644197/inverse-square-root-intrinsics
 // faster than 1.0f/std::sqrt, but with little accuracy.
 #include <immintrin.h>
@@ -38,9 +55,8 @@ inline float invSqrt(float f) {
 	return _mm_cvtss_f32(temp);
 }
 #else
-#include <cmath>
 inline float invSqrt(float f) {
-	return 1.0/sqrt(f);
+	return 1.0f/sqrtf(f);
 }
 #endif
 
@@ -65,13 +81,12 @@ Vertices:           Faces:
     3 __________2        ___________
    /|          /|      /|          /|
   / |         / |     / |   2     / |
-7/__________6/  |    /  |     4  /  |
-|   |       |   |   |¯¯¯¯¯¯¯¯¯¯¯| 1 |     z
+7/__________6/  |    /________4_ /  |
+|   |       |   |   |   |       | 1 |     z
 |   0_______|___1   | 3 |_______|___|     |
 |  /        |  /    |  /  5     |  /      |____y
 | /         | /     | /     0   | /      /
 4/__________5/      |/__________|/      x
-
 
 This function returns a vector with all six test face results (face[6]). Each
 result value is 1 if the positive face vertices are joined, -1 if the negative
@@ -118,25 +133,35 @@ int MC33::face_test1(int face) const {
 	}
 }
 
+#ifndef USE_INTERNAL_SIGNBIT
+#define USE_INTERNAL_SIGNBIT 1 /* definition of signbf function, see marching_cubes_33.c */
+#endif
+
+#if USE_INTERNAL_SIGNBIT
+// an ugly signbit for float or double type with
+// warning: dereferencing type-punned pointer will break strict-aliasing rules
 // Silence dereferencing type-punned pointer warning in GCC
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
-// an ugly signbit:
-#if MC33_DOUBLE_PRECISION
-inline unsigned int signbf(double x) {
-	return ((*(reinterpret_cast<unsigned long long int*>(&x))>>32)&0x80000000);
+
+#if !S_BIG_ENDIAN && MC33_DOUBLE_PRECISION
+inline unsigned int signbf(const double x) {
+	return (reinterpret_cast<const unsigned int*>(&x))[1]&0x80000000;
 }
 #else
-inline unsigned int signbf(float x) {
-	return (*(reinterpret_cast<unsigned int*>(&x))&0x80000000);
+inline unsigned int signbf(const MC33_real x) {
+	return (*(reinterpret_cast<const unsigned int*>(&x))&0x80000000);
 }
 #endif
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+#else
+#define signbf std::signbit
+#endif // USE_INTERNAL_SIGNBIT
 
 /******************************************************************
 Interior test function. If the test is positive, the function returns a value
@@ -209,6 +234,10 @@ unsigned int MC33::surfint(unsigned int x, unsigned int y, unsigned int z, MC33_
 		r[5] = 0.5f*(F[z - 1][y][x] - F[z + 1][y][x]);
 	return store_point(r);
 }
+
+#ifndef MC33_NORMAL_NEG
+#define MC33_NORMAL_NEG 0 /* If it is 1, the front and back surfaces are exchanged. */
+#endif
 
 /******************************************************************
 This function find the MC33 case (using the index i, and the face and interior
@@ -806,10 +835,10 @@ void MC33::find_case(unsigned int x, unsigned int y, unsigned int z, unsigned in
 				}
 			}
 			unsigned int *vp = S->T[S->nT++].v;
-#ifndef MC33_NORMAL_NEG
-			*vp = ti[n]; *(++vp) = ti[m]; *(++vp) = ti[2];
-#else
+#if MC33_NORMAL_NEG
 			*vp = ti[m]; *(++vp) = ti[n]; *(++vp) = ti[2];
+#else
+			*vp = ti[n]; *(++vp) = ti[m]; *(++vp) = ti[2];
 #endif
 		}
 	}
@@ -1309,15 +1338,15 @@ void MC33::clear_temp_isosurface() {
 				}\
 			}
 
-#ifndef MC33_NORMAL_NEG
+#if MC33_NORMAL_NEG // reverses the direction of the normal
 #define code_in_define_part02\
-			MC33_real t = invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
+			float t = -invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
 			float *q = S->N[nv].v;\
 			*q = t * *r; *(++q) = t * *(++r); *(++q) = t * *(++r);\
 			return nv;
-#else //MC33_NORMAL_NEG reverses the direction of the normal
+#else
 #define code_in_define_part02\
-			MC33_real t = -invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
+			float t = invSqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);\
 			float *q = S->N[nv].v;\
 			*q = t * *r; *(++q) = t * *(++r); *(++q) = t * *(++r);\
 			return nv;
@@ -1491,7 +1520,7 @@ int MC33::calculate_isosurface(surface &Sf, MC33_real iso) {
 size_t MC33::size_of_isosurface(MC33_real iso, unsigned int &nV, unsigned int &nT) {
 	const GRD_data_type ***FG = F;
 	if (!FG)//The set_grid3d function was not executed
-		return -2;
+		return 0;
 	surface Sf;
 	S = &Sf;
 	Sf.iso = iso;

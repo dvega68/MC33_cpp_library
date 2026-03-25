@@ -6,6 +6,7 @@
 	August 2020
 	July 2021
 	February 2026
+	March 2026
 */
 
 #include <cstdlib>
@@ -160,7 +161,8 @@ int surface::save_txt(const char* filename) {
 	out.setf(ios_base::fixed, ios_base::basefield);
 	out.precision(MC33_prec);
 	for (const auto &r: V)
-		out << setw(7 + MC33_prec) << r.v[0] << setw(8 + MC33_prec) << r.v[1] << setw(8 + MC33_prec) << r.v[2] << endl;
+		out << setw(7 + MC33_prec) << r.v[0] << setw(8 + MC33_prec) << r.v[1] <<
+			setw(8 + MC33_prec) << r.v[2] << endl;
 
 	out << "\n\nTRIANGLES:\n" << nT << "\n\n";
 	for (const auto &t: T)
@@ -221,11 +223,14 @@ int surface::save_ply(const char* filename, const char* author, const char* obje
 		object = &empty;
 	out << "ply\nformat ascii 1.0\ncomment author: " << author << "\ncomment object: " << object;
 	out << "\nelement vertex " << nV << "\nproperty float x\nproperty float y\nproperty float z";
+	out << "\nproperty float nx\nproperty float ny\nproperty float nz";
 	out << "\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nelement face " << nT;
 	out << "\nproperty list uchar int vertex_index\nend_header";
 	for (unsigned int i = 0; i < nV; i++) {
 		auto v = V[i].v;
 		out << "\n" << v[0] << " " << v[1] << " " << v[2] << " ";
+		auto n = N[i].v;
+		out << n[0] << " " << n[1] << " " << n[2] << " ";
 		unsigned char* c = reinterpret_cast<unsigned char*>(&color[i]);
 		out << (int)c[0] << " " << (int)c[1] << " " << (int)c[2];
 	}
